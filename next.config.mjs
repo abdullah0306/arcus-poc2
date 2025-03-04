@@ -20,7 +20,7 @@ const nextConfig = {
       },
     ],
   },
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.resolve.alias.canvas = false;
     config.resolve.fallback = {
       ...config.resolve.fallback,
@@ -28,6 +28,10 @@ const nextConfig = {
       path: false,
       stream: false,
     };
+
+    // Handle ES modules
+    config.resolve.alias['pdfjs-dist'] = 'pdfjs-dist/build/pdf.js';
+
     return config;
   },
 };

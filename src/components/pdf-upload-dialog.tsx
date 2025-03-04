@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import * as pdfjsLib from "pdfjs-dist";
+import { getDocument, GlobalWorkerOptions, version } from "pdfjs-dist";
 
 interface PDFUploadDialogProps {
   onPDFProcessed: (pages: string[]) => void;
@@ -28,8 +28,8 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
 
     const setupWorker = async () => {
       try {
-        // Initialize PDF.js worker using unpkg CDN
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+        // Set worker source
+        GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
         setIsWorkerReady(true);
       } catch (error) {
         console.error('Error loading PDF worker:', error);
@@ -48,7 +48,7 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
 
       // Read the PDF file
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await getDocument({ data: arrayBuffer }).promise;
       
       // Process first page
       const page = await pdf.getPage(1);
