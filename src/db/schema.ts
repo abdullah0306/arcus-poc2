@@ -23,6 +23,7 @@ export const users = pgTable("user", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
+  canvasProjects: many(canvasProjects),
 }));
 
 export const accounts = pgTable(
@@ -120,6 +121,34 @@ export const projectsRelations = relations(projects, ({ one }) => ({
 }));
 
 export const projectsInsertSchema = createInsertSchema(projects);
+
+export const canvasProjects = pgTable("canvas_project", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  name: text("name").notNull(),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, {
+      onDelete: "cascade",
+    }),
+  canvasData: text("canvasData").notNull(),
+  createdAt: timestamp("createdAt", { mode: "date" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  updatedAt: timestamp("updatedAt", { mode: "date" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const canvasProjectsRelations = relations(canvasProjects, ({ one }) => ({
+  user: one(users, {
+    fields: [canvasProjects.userId],
+    references: [users.id],
+  }),
+}));
+
+export const canvasProjectsInsertSchema = createInsertSchema(canvasProjects);
 
 export const subscriptions = pgTable("subscription", {
   id: text("id")
