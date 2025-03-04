@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
+import { Spinner } from "@/components/ui/spinner";
+import { toast } from "sonner";
 
 interface CanvasProject {
   id: string;
@@ -18,9 +20,11 @@ export default function ProjectsPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<CanvasProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   const loadProjects = async () => {
     try {
+      setIsLoadingProjects(true);
       const response = await fetch("/api/canvas-projects");
       if (response.ok) {
         const data = await response.json();
@@ -28,6 +32,9 @@ export default function ProjectsPage() {
       }
     } catch (error) {
       console.error("Failed to load projects:", error);
+      toast.error("Failed to load projects");
+    } finally {
+      setIsLoadingProjects(false);
     }
   };
 
@@ -50,10 +57,12 @@ export default function ProjectsPage() {
 
       if (response.ok) {
         const project = await response.json();
+        toast.success("Project created successfully");
         router.push(`/projects/${project.id}/canvas`);
       }
     } catch (error) {
       console.error("Failed to create project:", error);
+      toast.error("Failed to create project");
     } finally {
       setIsLoading(false);
     }
@@ -67,25 +76,39 @@ export default function ProjectsPage() {
           description="View and manage all your design projects"
         />
         <Button onClick={handleCreateProject} size="sm" disabled={isLoading}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Project
+          {isLoading ? (
+            <Spinner className="mr-2" />
+          ) : (
+            <Plus className="h-4 w-4 mr-2" />
+          )}
+          {isLoading ? "Creating..." : "Create Project"}
         </Button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {projects.map((project) => (
-          <Card 
-            key={project.id}
-            className="cursor-pointer hover:opacity-75 transition"
-            onClick={() => router.push(`/projects/${project.id}/canvas`)}
-          >
-            <CardHeader className="p-4">
-              <CardTitle className="text-sm truncate">{project.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 pt-0 text-xs text-muted-foreground">
-              Created {format(new Date(project.createdAt), "MMM d, yyyy")}
-            </CardContent>
-          </Card>
-        ))}
+        {isLoadingProjects ? (
+          <div className="col-span-full flex justify-center items-center min-h-[200px]">
+            <Spinner className="h-6 w-6" />
+          </div>
+        ) : projects.length === 0 ? (
+          <div className="col-span-full text-center text-muted-foreground py-10">
+            No projects yet. Create your first project to get started.
+          </div>
+        ) : (
+          projects.map((project) => (
+            <Card 
+              key={project.id}
+              className="cursor-pointer hover:opacity-75 transition"
+              onClick={() => router.push(`/projects/${project.id}/canvas`)}
+            >
+              <CardHeader className="p-4">
+                <CardTitle className="text-sm truncate">{project.name}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 text-xs text-muted-foreground">
+                Created {format(new Date(project.createdAt), "MMM d, yyyy")}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
