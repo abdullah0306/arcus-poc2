@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/tooltip";
 
 // Constants for zoom limits and steps
-const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 20;
-const ZOOM_STEP = 0.1;
+const MIN_ZOOM = 0.1; // 10% of original size
+const MAX_ZOOM = 20; // 2000% of original size
+const ZOOM_SPEED = 1.1; // 10% change per zoom step
 
 export default function CanvasPage() {
   const canvasRef = useRef<fabric.Canvas | null>(null);
@@ -169,21 +169,35 @@ export default function CanvasPage() {
       e.preventDefault();
       
       const delta = e.deltaY;
-      let newZoom = canvas.getZoom();
-      
+      let currentZoom = canvas.getZoom();
+      let newZoom = currentZoom;
+
       // Calculate new zoom
       if (delta > 0) {
-        newZoom *= 0.95; // Zoom out
+        // Zoom out - faster when closer to max zoom
+        const zoomFactor = Math.max(ZOOM_SPEED, 1 + (currentZoom / MAX_ZOOM) * 0.5);
+        newZoom = currentZoom / zoomFactor;
       } else {
-        newZoom *= 1.05; // Zoom in
+        // Zoom in - faster when closer to min zoom
+        const zoomFactor = Math.max(ZOOM_SPEED, 1 + (MIN_ZOOM / currentZoom) * 0.5);
+        newZoom = currentZoom * zoomFactor;
       }
-      
+
       // Clamp zoom between MIN_ZOOM and MAX_ZOOM
       newZoom = Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM);
-      
-      const point = new fabric.Point(e.offsetX, e.offsetY);
-      canvas.zoomToPoint(point, newZoom);
+
+      // Get the mouse position
+      const point = {
+        x: e.offsetX,
+        y: e.offsetY,
+      };
+
+      // Apply zoom
+      canvas.zoomToPoint(new fabric.Point(point.x, point.y), newZoom);
       setZoom(newZoom);
+
+      // Ensure the viewport transform is updated
+      canvas.requestRenderAll();
     };
 
     const canvasEl = fabricCanvasRef.current;
@@ -199,25 +213,34 @@ export default function CanvasPage() {
     if (!canvasRef.current) return;
     
     const canvas = canvasRef.current;
-    let newZoom = canvas.getZoom();
-    
+    let currentZoom = canvas.getZoom();
+    let newZoom = currentZoom;
+
     if (zoomIn) {
-      newZoom *= 1.1; // Zoom in by 10%
+      // Zoom in - larger steps when closer to min zoom
+      const zoomFactor = Math.max(ZOOM_SPEED, 1 + (MIN_ZOOM / currentZoom) * 0.5);
+      newZoom = currentZoom * zoomFactor;
     } else {
-      newZoom *= 0.9; // Zoom out by 10%
+      // Zoom out - larger steps when closer to max zoom
+      const zoomFactor = Math.max(ZOOM_SPEED, 1 + (currentZoom / MAX_ZOOM) * 0.5);
+      newZoom = currentZoom / zoomFactor;
     }
     
     // Clamp zoom between MIN_ZOOM and MAX_ZOOM
     newZoom = Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM);
     
     // Get canvas center point
-    const center = new fabric.Point(
-      canvas.getWidth() / 2,
-      canvas.getHeight() / 2
-    );
+    const center = {
+      x: canvas.getWidth() / 2,
+      y: canvas.getHeight() / 2
+    };
     
-    canvas.zoomToPoint(center, newZoom);
+    // Apply zoom to center
+    canvas.zoomToPoint(new fabric.Point(center.x, center.y), newZoom);
     setZoom(newZoom);
+    
+    // Ensure the viewport transform is updated
+    canvas.requestRenderAll();
   };
 
   return (
