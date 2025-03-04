@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
 import { ZoomIn, ZoomOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -19,7 +18,6 @@ const ZOOM_SPEED = 1.1; // 10% change per zoom step
 export default function CanvasPage() {
   const canvasRef = useRef<fabric.Canvas | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const fabricCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [zoom, setZoom] = useState(1);
   const isDragging = useRef(false);
@@ -28,7 +26,7 @@ export default function CanvasPage() {
 
   // Initialize canvas after component mount
   useEffect(() => {
-    const canvas = new fabric.Canvas(fabricCanvasRef.current!, {
+    const canvas = new fabric.Canvas("canvas", {
       width: window.innerWidth,
       height: window.innerHeight,
       backgroundColor: "#ffffff",
@@ -44,42 +42,11 @@ export default function CanvasPage() {
     };
   }, []);
 
-  // Handle image loading after canvas is ready
+  // Handle window resize
   useEffect(() => {
     if (!isCanvasReady || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
-
-    // Add the floor plan image
-    fabric.Image.fromURL('/floorplan.png', (img: fabric.Image) => {
-      // Set initial scale to fit 90% of the viewport
-      const scaleX = (window.innerWidth * 0.9) / img.width!;
-      const scaleY = (window.innerHeight * 0.9) / img.height!;
-      const scale = Math.min(scaleX, scaleY);
-
-      // Center the image
-      const left = (canvas.getWidth() - img.width! * scale) / 2;
-      const top = (canvas.getHeight() - img.height! * scale) / 2;
-
-      img.set({
-        scaleX: scale,
-        scaleY: scale,
-        left: left,
-        top: top,
-        selectable: true,
-        hasControls: true,
-        hasBorders: true,
-        lockUniScaling: true // Maintain aspect ratio when scaling
-      });
-
-      canvas.add(img);
-      canvas.centerObject(img);
-      canvas.requestRenderAll();
-    }, {
-      crossOrigin: 'anonymous'
-    });
-
-    // Handle window resize
     const handleResize = () => {
       canvas.setDimensions({
         width: window.innerWidth,
@@ -200,7 +167,7 @@ export default function CanvasPage() {
       canvas.requestRenderAll();
     };
 
-    const canvasEl = fabricCanvasRef.current;
+    const canvasEl = document.getElementById('canvas');
     canvasEl?.addEventListener('wheel', handleWheel, { passive: false });
 
     return () => {
@@ -244,22 +211,21 @@ export default function CanvasPage() {
   };
 
   return (
-    <div ref={containerRef} className="fixed inset-0 w-full h-full overflow-hidden">
-      <canvas ref={fabricCanvasRef} id="canvas" />
+    <div ref={containerRef} className="h-screen w-screen relative bg-neutral-100">
+      <canvas id="canvas" />
       
       {/* Zoom controls */}
       <div className="fixed bottom-5 right-5 flex flex-col gap-2">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="secondary"
-                size="icon"
+              <button
                 onClick={() => handleZoom(true)}
+                className="bg-white p-2 rounded-lg shadow hover:bg-gray-100 transition-colors"
                 disabled={zoom >= MAX_ZOOM}
               >
-                <ZoomIn className="h-4 w-4" />
-              </Button>
+                <ZoomIn className="h-5 w-5 text-gray-700" />
+              </button>
             </TooltipTrigger>
             <TooltipContent>
               <p>Zoom In (Ctrl + Mouse Wheel Up)</p>
@@ -270,21 +236,21 @@ export default function CanvasPage() {
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="secondary"
-                size="icon"
+              <button
                 onClick={() => handleZoom(false)}
+                className="bg-white p-2 rounded-lg shadow hover:bg-gray-100 transition-colors"
                 disabled={zoom <= MIN_ZOOM}
               >
-                <ZoomOut className="h-4 w-4" />
-              </Button>
+                <ZoomOut className="h-5 w-5 text-gray-700" />
+              </button>
             </TooltipTrigger>
             <TooltipContent>
               <p>Zoom Out (Ctrl + Mouse Wheel Down)</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-        <div className="text-sm text-center bg-white px-2 py-1 rounded">
+
+        <div className="text-sm text-center bg-white px-2 py-1 rounded shadow text-gray-700">
           {Math.round(zoom * 100)}%
         </div>
       </div>
