@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
+import { PDFUploadDialog } from "@/components/pdf-upload-dialog";
 
 interface CanvasProject {
   id: string;
@@ -68,6 +69,37 @@ export default function ProjectsPage() {
     }
   };
 
+  const handlePDFProcessed = async (pages: string[]) => {
+    try {
+      // Save the first page data to the database
+      const response = await fetch("/api/canvas-projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "New Project",
+          canvasData: {
+            version: "1.0",
+            pages: pages,
+            currentPage: 0
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create project");
+      }
+
+      const project = await response.json();
+      
+      // Navigate to the canvas page with the new project
+      router.push(`/projects/${project.id}/canvas`);
+    } catch (error) {
+      console.error("Error creating project:", error);
+    }
+  };
+
   return (
     <div className="h-full p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -75,14 +107,17 @@ export default function ProjectsPage() {
           title="My Projects"
           description="View and manage all your design projects"
         />
-        <Button onClick={handleCreateProject} size="sm" disabled={isLoading}>
-          {isLoading ? (
-            <Spinner className="mr-2" />
-          ) : (
-            <Plus className="h-4 w-4 mr-2" />
-          )}
-          {isLoading ? "Creating..." : "Create Project"}
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button onClick={handleCreateProject} size="sm" disabled={isLoading}>
+            {isLoading ? (
+              <Spinner className="mr-2" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
+            {isLoading ? "Creating..." : "Create Project"}
+          </Button>
+          <PDFUploadDialog onPDFProcessed={handlePDFProcessed} />
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {isLoadingProjects ? (

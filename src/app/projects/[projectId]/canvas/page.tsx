@@ -15,7 +15,13 @@ const MIN_ZOOM = 0.1; // 10% of original size
 const MAX_ZOOM = 20; // 2000% of original size
 const ZOOM_SPEED = 1.1; // 10% change per zoom step
 
-export default function CanvasPage() {
+interface PageProps {
+  params: {
+    projectId: string;
+  };
+}
+
+export default function CanvasPage({ params }: PageProps) {
   const canvasRef = useRef<fabric.Canvas | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isCanvasReady, setIsCanvasReady] = useState(false);
@@ -23,6 +29,7 @@ export default function CanvasPage() {
   const isDragging = useRef(false);
   const lastPosX = useRef<number>(0);
   const lastPosY = useRef<number>(0);
+  const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
 
   // Initialize canvas after component mount
   useEffect(() => {
@@ -35,10 +42,14 @@ export default function CanvasPage() {
     });
 
     canvasRef.current = canvas;
+    canvasElementRef.current = canvas.getElement();
     setIsCanvasReady(true);
 
     return () => {
-      canvas.dispose();
+      if (canvasRef.current) {
+        canvasRef.current.dispose();
+        canvasRef.current = null;
+      }
     };
   }, []);
 
@@ -64,9 +75,10 @@ export default function CanvasPage() {
 
   // Pan handlers
   useEffect(() => {
-    if (!isCanvasReady || !canvasRef.current) return;
+    if (!isCanvasReady || !canvasRef.current || !canvasElementRef.current) return;
 
     const canvas = canvasRef.current;
+    const canvasElement = canvasElementRef.current;
 
     const handleMouseDown = (opt: fabric.IEvent) => {
       const evt = opt.e as MouseEvent;
@@ -116,13 +128,17 @@ export default function CanvasPage() {
     canvas.on('mouse:down', handleMouseDown);
     canvas.on('mouse:move', handleMouseMove);
     canvas.on('mouse:up', handleMouseUp);
-    canvas.getElement().addEventListener('contextmenu', handleContextMenu);
+    canvasElement.addEventListener('contextmenu', handleContextMenu);
 
     return () => {
-      canvas.off('mouse:down', handleMouseDown);
-      canvas.off('mouse:move', handleMouseMove);
-      canvas.off('mouse:up', handleMouseUp);
-      canvas.getElement().removeEventListener('contextmenu', handleContextMenu);
+      if (canvasRef.current) {
+        canvas.off('mouse:down', handleMouseDown);
+        canvas.off('mouse:move', handleMouseMove);
+        canvas.off('mouse:up', handleMouseUp);
+      }
+      if (canvasElementRef.current) {
+        canvasElement.removeEventListener('contextmenu', handleContextMenu);
+      }
     };
   }, [isCanvasReady]);
 
@@ -168,12 +184,60 @@ export default function CanvasPage() {
     };
 
     const canvasEl = document.getElementById('canvas');
-    canvasEl?.addEventListener('wheel', handleWheel, { passive: false });
+    if (canvasEl) {
+      canvasEl.addEventListener('wheel', handleWheel, { passive: false });
+    }
 
     return () => {
-      canvasEl?.removeEventListener('wheel', handleWheel);
+      const canvasEl = document.getElementById('canvas');
+      if (canvasEl) {
+        canvasEl.removeEventListener('wheel', handleWheel);
+      }
     };
   }, [isCanvasReady]);
+
+  // Load canvas content after initialization
+  useEffect(() => {
+    if (!isCanvasReady || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+
+    // Fetch project data
+    const fetchProject = async () => {
+      try {
+        const response = await fetch(`/api/canvas-projects/${params.projectId}`);
+        if (!response.ok) throw new Error('Failed to fetch project');
+        
+        const project = await response.json();
+        
+        if (project.canvasData?.pages?.[0]) {
+          // Load the first page as background image
+          fabric.Image.fromURL(project.canvasData.pages[0], (img) => {
+            // Calculate scale to fit canvas while maintaining aspect ratio
+            const scaleX = canvas.width! / img.width!;
+            const scaleY = canvas.height! / img.height!;
+            const scale = Math.min(scaleX, scaleY);
+
+            img.set({
+              scaleX: scale,
+              scaleY: scale,
+              left: (canvas.width! - img.width! * scale) / 2,
+              top: (canvas.height! - img.height! * scale) / 2,
+              selectable: true,
+              hasControls: true
+            });
+
+            canvas.add(img);
+            canvas.requestRenderAll();
+          }, { crossOrigin: 'anonymous' });
+        }
+      } catch (error) {
+        console.error('Error loading project:', error);
+      }
+    };
+
+    fetchProject();
+  }, [isCanvasReady, params.projectId]);
 
   // Handle zoom button clicks
   const handleZoom = (zoomIn: boolean) => {
