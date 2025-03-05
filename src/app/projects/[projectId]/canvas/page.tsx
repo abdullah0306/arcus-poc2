@@ -10,6 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
+import { useCanvasStore } from "@/store/canvas-store";
 import LeftPanel from "@/components/canvas/left-panel";
 import RightPanel from "@/components/canvas/right-panel";
 import TopPanel from "@/components/canvas/top-panel";
@@ -28,15 +29,50 @@ interface PageProps {
 
 export default function CanvasPage({ params }: PageProps) {
   const canvasRef = useRef<fabric.Canvas | null>(null);
+  const { setCanvas } = useCanvasStore();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [zoom, setZoom] = useState(1);
   const isDragging = useRef(false);
   const lastPosX = useRef<number>(0);
   const lastPosY = useRef<number>(0);
-  const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Initialize canvas
+  useEffect(() => {
+    const initCanvas = () => {
+      const container = containerRef.current;
+      if (!container || canvasRef.current) return;
+
+      const canvas = new fabric.Canvas("canvas", {
+        width: container.clientWidth,
+        height: container.clientHeight,
+        backgroundColor: "#ffffff",
+      });
+
+      canvasRef.current = canvas;
+      setCanvas(canvas);
+      setIsCanvasReady(true);
+
+      const handleResize = () => {
+        canvas.setDimensions({
+          width: container.clientWidth,
+          height: container.clientHeight,
+        });
+        canvas.requestRenderAll();
+      };
+
+      window.addEventListener("resize", handleResize);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+        canvas.dispose();
+      };
+    };
+
+    // Small delay to ensure DOM is ready
+    setTimeout(initCanvas, 100);
+  }, []);
 
   // Load initial canvas data
   useEffect(() => {
@@ -46,12 +82,16 @@ export default function CanvasPage({ params }: PageProps) {
       try {
         setLoadingProgress(10);
         const response = await fetch(`/api/canvas-projects/${params.projectId}`);
-        if (!response.ok) return;
+        if (!response.ok) {
+          setIsLoading(false);
+          return;
+        }
 
         setLoadingProgress(20);
         const project = await response.json();
+        
         if (project.canvasData?.pages?.length > 0) {
-          handlePDFProcessed(project.canvasData.pages);
+          await handlePDFProcessed(project.canvasData.pages);
         } else {
           setIsLoading(false);
         }
@@ -65,108 +105,72 @@ export default function CanvasPage({ params }: PageProps) {
   }, [isCanvasReady, params.projectId]);
 
   // Handle adding PDF page to canvas
-  const handlePDFProcessed = async (pages: string[]) => {
-    if (!canvasRef.current || pages.length === 0) return;
-    
-    const canvas = canvasRef.current;
-    const firstPage = pages[0];
-
-    // Create a fabric.Image from the data URL
-    setLoadingProgress(30);
-    fabric.Image.fromURL(firstPage, (img) => {
-      setLoadingProgress(60);
-      
-      // Calculate scale to fit the canvas while maintaining aspect ratio
-      const canvasWidth = canvas.getWidth();
-      const canvasHeight = canvas.getHeight();
-      const scale = Math.min(
-        (canvasWidth * 0.9) / img.width!,
-        (canvasHeight * 0.9) / img.height!
-      );
-
-      setLoadingProgress(80);
-
-      // Set image properties
-      img.scale(scale);
-      img.set({
-        left: (canvasWidth - img.width! * scale) / 2,
-        top: (canvasHeight - img.height! * scale) / 2,
-        selectable: false, // Make image unselectable
-        evented: false, // Disable all events on the image
-        hasControls: false, // Remove resize controls
-        hasBorders: false, // Remove borders
-        lockMovementX: true, // Lock horizontal movement
-        lockMovementY: true, // Lock vertical movement
-        hoverCursor: 'default', // Use default cursor on hover
-      });
-
-      // Clear existing objects and add the image
-      canvas.clear();
-      canvas.add(img);
-      
-      // Send the image to the back and lock it
-      img.sendToBack();
-      canvas.renderAll();
-
-      setLoadingProgress(100);
-      setTimeout(() => {
+  const handlePDFProcessed = (pages: string[]) => {
+    return new Promise<void>((resolve) => {
+      if (!canvasRef.current || pages.length === 0) {
         setIsLoading(false);
-      }, 500); // Keep progress bar for a moment before hiding
+        resolve();
+        return;
+      }
+      
+      const canvas = canvasRef.current;
+      const firstPage = pages[0];
+
+      setLoadingProgress(30);
+      
+      // Create a fabric.Image from the data URL
+      fabric.Image.fromURL(
+        firstPage,
+        (img) => {
+          setLoadingProgress(60);
+          
+          // Calculate scale to fit the canvas while maintaining aspect ratio
+          const canvasWidth = canvas.getWidth();
+          const canvasHeight = canvas.getHeight();
+          const scale = Math.min(
+            (canvasWidth * 0.9) / img.width!,
+            (canvasHeight * 0.9) / img.height!
+          );
+
+          setLoadingProgress(80);
+
+          // Set image properties
+          img.scale(scale);
+          img.set({
+            left: (canvasWidth - img.width! * scale) / 2,
+            top: (canvasHeight - img.height! * scale) / 2,
+            selectable: false,
+            evented: false,
+            hasControls: false,
+            hasBorders: false,
+            lockMovementX: true,
+            lockMovementY: true,
+            hoverCursor: 'default',
+          });
+
+          // Clear existing objects and add the image
+          canvas.clear();
+          canvas.add(img);
+          img.sendToBack();
+          canvas.renderAll();
+
+          setLoadingProgress(100);
+          setTimeout(() => {
+            setIsLoading(false);
+            resolve();
+          }, 500);
+        },
+        { crossOrigin: 'anonymous' }
+      );
     });
   };
-
-  // Initialize canvas after component mount
-  useEffect(() => {
-    const container = document.getElementById('canvas-container');
-    if (!container) return;
-
-    // Create a style element for our custom canvas styles
-    const style = document.createElement('style');
-    style.textContent = `
-      .canvas-wrapper {
-        transform-style: flat;
-        perspective: none;
-        position: relative;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-      }
-      .canvas-container {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        transform-origin: 0 0;
-      }
-    `;
-    document.head.appendChild(style);
-
-    const canvas = new fabric.Canvas("canvas", {
-      width: container.clientWidth,
-      height: container.clientHeight,
-      backgroundColor: "#ffffff",
-      selection: true,
-      preserveObjectStacking: true,
-    });
-
-    canvasRef.current = canvas;
-    canvasElementRef.current = canvas.getElement();
-    setIsCanvasReady(true);
-
-    return () => {
-      if (canvasRef.current) {
-        canvasRef.current.dispose();
-        canvasRef.current = null;
-      }
-      document.head.removeChild(style);
-    };
-  }, []);
 
   // Handle window resize
   useEffect(() => {
     if (!isCanvasReady || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const container = document.getElementById('canvas-container');
+    const container = containerRef.current;
     if (!container) return;
 
     const handleResize = () => {
@@ -252,7 +256,7 @@ export default function CanvasPage({ params }: PageProps) {
       if (!e.ctrlKey) return;
       
       // Only handle zoom if the event is within the canvas container
-      const container = document.getElementById('canvas-container');
+      const container = containerRef.current;
       if (!container?.contains(e.target as Node)) return;
       
       e.preventDefault();
@@ -280,13 +284,13 @@ export default function CanvasPage({ params }: PageProps) {
     };
 
     // Attach wheel event to the canvas container instead of canvas
-    const container = document.getElementById('canvas-container');
+    const container = containerRef.current;
     if (container) {
       container.addEventListener('wheel', handleWheel, { passive: false });
     }
 
     return () => {
-      const container = document.getElementById('canvas-container');
+      const container = containerRef.current;
       if (container) {
         container.removeEventListener('wheel', handleWheel);
       }
@@ -336,10 +340,12 @@ export default function CanvasPage({ params }: PageProps) {
               </div>
             </div>
           )}
-          <div id="canvas-container" className="absolute inset-0">
-            <div className="canvas-wrapper">
-              <canvas id="canvas" />
-            </div>
+          <div 
+            id="canvas-container" 
+            ref={containerRef}
+            className="absolute inset-0"
+          >
+            <canvas id="canvas" />
           </div>
           <div className="absolute bottom-4 right-4 flex gap-2 z-10">
             <TooltipProvider>
@@ -376,9 +382,7 @@ export default function CanvasPage({ params }: PageProps) {
         </div>
         <RightPanel />
       </div>
-      <div className="w-full">
-        <BottomPanel />
-      </div>
+      <BottomPanel />
     </div>
   );
 }
