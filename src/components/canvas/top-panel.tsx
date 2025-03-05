@@ -7,10 +7,14 @@ import { useCanvasStore } from "@/store/canvas-store";
 import { useThemeStore } from "@/store/theme-store";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useParams } from "next/navigation";
+import { useGetCanvasProject } from "@/features/projects/api/use-get-canvas-project";
 
 export default function TopPanel() {
   const { canvas } = useCanvasStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
+  const { projectId } = useParams();
+  const { data: project } = useGetCanvasProject(projectId as string);
 
   const handleExport = () => {
     if (!canvas) return;
@@ -95,7 +99,7 @@ export default function TopPanel() {
           <h1 className={cn(
             "font-medium transition-colors",
             isDarkMode ? "text-orange-100" : "text-zinc-900"
-          )}>Untitled Project</h1>
+          )}>{project?.name || "Untitled Project"}</h1>
         </div>
 
         {/* Right Section */}
