@@ -15,6 +15,13 @@
       "when": 1741123688254,
       "tag": "0001_tearful_toad_men",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1741191140125,
+      "tag": "0002_little_anita_blake",
+      "breakpoints": true
     }
   ]
 }

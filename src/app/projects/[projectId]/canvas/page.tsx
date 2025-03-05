@@ -35,6 +35,58 @@ export default function CanvasPage({ params }: PageProps) {
   const lastPosY = useRef<number>(0);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Load initial canvas data
+  useEffect(() => {
+    if (!isCanvasReady || !canvasRef.current || !params.projectId) return;
+
+    const loadCanvasData = async () => {
+      try {
+        const response = await fetch(`/api/canvas-projects/${params.projectId}`);
+        if (!response.ok) return;
+
+        const project = await response.json();
+        if (project.canvasData?.pages?.length > 0) {
+          handlePDFProcessed(project.canvasData.pages);
+        }
+      } catch (error) {
+        console.error("Error loading canvas data:", error);
+      }
+    };
+
+    loadCanvasData();
+  }, [isCanvasReady, params.projectId]);
+
+  // Handle adding PDF page to canvas
+  const handlePDFProcessed = async (pages: string[]) => {
+    if (!canvasRef.current || pages.length === 0) return;
+    
+    const canvas = canvasRef.current;
+    const firstPage = pages[0];
+
+    // Create a fabric.Image from the data URL
+    fabric.Image.fromURL(firstPage, (img) => {
+      // Calculate scale to fit the canvas while maintaining aspect ratio
+      const canvasWidth = canvas.getWidth();
+      const canvasHeight = canvas.getHeight();
+      const scale = Math.min(
+        (canvasWidth * 0.9) / img.width!,
+        (canvasHeight * 0.9) / img.height!
+      );
+
+      // Set image properties
+      img.scale(scale);
+      img.set({
+        left: (canvasWidth - img.width! * scale) / 2,
+        top: (canvasHeight - img.height! * scale) / 2,
+      });
+
+      // Clear existing objects and add the image
+      canvas.clear();
+      canvas.add(img);
+      canvas.requestRenderAll();
+    });
+  };
+
   // Initialize canvas after component mount
   useEffect(() => {
     const container = document.getElementById('canvas-container');
@@ -212,49 +264,6 @@ export default function CanvasPage({ params }: PageProps) {
       }
     };
   }, [isCanvasReady]);
-
-  // Load canvas content after initialization
-  useEffect(() => {
-    if (!isCanvasReady || !canvasRef.current) return;
-
-    const canvas = canvasRef.current;
-
-    // Fetch project data
-    const fetchProject = async () => {
-      try {
-        const response = await fetch(`/api/canvas-projects/${params.projectId}`);
-        if (!response.ok) throw new Error('Failed to fetch project');
-        
-        const project = await response.json();
-        
-        if (project.canvasData?.pages?.[0]) {
-          // Load the first page as background image
-          fabric.Image.fromURL(project.canvasData.pages[0], (img) => {
-            // Calculate scale to fit canvas while maintaining aspect ratio
-            const scaleX = canvas.width! / img.width!;
-            const scaleY = canvas.height! / img.height!;
-            const scale = Math.min(scaleX, scaleY);
-
-            img.set({
-              scaleX: scale,
-              scaleY: scale,
-              left: (canvas.width! - img.width! * scale) / 2,
-              top: (canvas.height! - img.height! * scale) / 2,
-              selectable: true,
-              hasControls: true
-            });
-
-            canvas.add(img);
-            canvas.requestRenderAll();
-          }, { crossOrigin: 'anonymous' });
-        }
-      } catch (error) {
-        console.error('Error loading project:', error);
-      }
-    };
-
-    fetchProject();
-  }, [isCanvasReady, params.projectId]);
 
   // Handle zoom button clicks
   const handleZoom = (direction: 'in' | 'out') => {

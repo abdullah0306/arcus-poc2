@@ -71,18 +71,31 @@ export default function ProjectsPage() {
 
   const handlePDFProcessed = async (pages: string[]) => {
     try {
-      // Save the first page data to the database
+      setIsLoading(true);
+      toast.loading("Creating project...");
+
+      // Split the request into chunks if the data is too large
+      const chunkSize = 1024 * 1024; // 1MB chunks
+      const chunks: string[] = [];
+      const firstPage = pages[0];
+      
+      for (let i = 0; i < firstPage.length; i += chunkSize) {
+        chunks.push(firstPage.slice(i, i + chunkSize));
+      }
+
+      // Create initial project
       const response = await fetch("/api/canvas-projects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: "New Project",
+          name: "PDF Project",
           canvasData: {
             version: "1.0",
-            pages: pages,
-            currentPage: 0
+            pages: [chunks[0]], // Send first chunk initially
+            currentPage: 0,
+            totalChunks: chunks.length,
           }
         }),
       });
@@ -93,10 +106,38 @@ export default function ProjectsPage() {
 
       const project = await response.json();
       
-      // Navigate to the canvas page with the new project
+      // Update project with remaining chunks if any
+      if (chunks.length > 1) {
+        for (let i = 1; i < chunks.length; i++) {
+          await fetch(`/api/canvas-projects/${project.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              canvasData: {
+                version: "1.0",
+                pages: [chunks[i]],
+                currentPage: 0,
+                chunkIndex: i,
+                totalChunks: chunks.length,
+              }
+            }),
+          });
+        }
+      }
+
+      toast.dismiss();
+      toast.success("Project created successfully");
+      
+      // Navigate to the canvas page
       router.push(`/projects/${project.id}/canvas`);
     } catch (error) {
       console.error("Error creating project:", error);
+      toast.dismiss();
+      toast.error("Failed to create project");
+    } finally {
+      setIsLoading(false);
     }
   };
 

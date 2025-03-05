@@ -7,9 +7,10 @@ import {
   text,
   primaryKey,
   integer,
+  json,
 } from "drizzle-orm/pg-core"
 import type { AdapterAccountType } from "next-auth/adapters"
- 
+
 export const users = pgTable("user", {
   id: text("id")
     .primaryKey()
@@ -49,7 +50,7 @@ export const accounts = pgTable(
     }),
   })
 )
- 
+
 export const sessions = pgTable("session", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
@@ -57,7 +58,7 @@ export const sessions = pgTable("session", {
     .references(() => users.id, { onDelete: "cascade" }),
   expires: timestamp("expires", { mode: "date" }).notNull(),
 })
- 
+
 export const verificationTokens = pgTable(
   "verificationToken",
   {
@@ -71,7 +72,7 @@ export const verificationTokens = pgTable(
     }),
   })
 )
- 
+
 export const authenticators = pgTable(
   "authenticator",
   {
@@ -92,6 +93,14 @@ export const authenticators = pgTable(
     }),
   })
 )
+
+interface CanvasData {
+  version: string;
+  pages: string[];
+  currentPage: number;
+  totalChunks?: number;
+  chunkIndex?: number;
+}
 
 export const projects = pgTable("project", {
   id: text("id")
@@ -132,7 +141,11 @@ export const canvasProjects = pgTable("canvas_project", {
     .references(() => users.id, {
       onDelete: "cascade",
     }),
-  canvasData: text("canvasData").notNull(),
+  canvasData: json("canvas_data").$type<CanvasData>().notNull().default({
+    version: "1.0",
+    pages: [],
+    currentPage: 0,
+  }),
   createdAt: timestamp("createdAt", { mode: "date" })
     .notNull()
     .$defaultFn(() => new Date()),

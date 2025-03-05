@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { getDocument, GlobalWorkerOptions, version } from "pdfjs-dist";
+import { toast } from "sonner";
 
 interface PDFUploadDialogProps {
   onPDFProcessed: (pages: string[]) => void;
@@ -33,11 +34,37 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
         setIsWorkerReady(true);
       } catch (error) {
         console.error('Error loading PDF worker:', error);
+        toast.error("Failed to initialize PDF processor");
       }
     };
 
     setupWorker();
   }, []);
+
+  const processPage = async (page: any, scale: number = 0.5): Promise<string> => {
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d")!;
+
+    // Set canvas dimensions
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    try {
+      // Render the page
+      await page.render({
+        canvasContext: context,
+        viewport: viewport,
+      }).promise;
+
+      // Convert to compressed JPEG format
+      return canvas.toDataURL("image/jpeg", 0.7);
+    } finally {
+      // Clean up
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+  };
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -45,33 +72,33 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
 
     try {
       setIsLoading(true);
+      toast.loading("Processing PDF...");
+
+      // Validate file size
+      if (file.size > 50 * 1024 * 1024) { // 50MB limit
+        throw new Error("File size too large. Please upload a PDF smaller than 50MB.");
+      }
 
       // Read the PDF file
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await getDocument({ data: arrayBuffer }).promise;
       
-      // Process first page
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 1 });
-      
-      // Create canvas to render the page
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d")!;
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-
-      // Render the page
-      await page.render({
-        canvasContext: context,
-        viewport: viewport,
-      }).promise;
-
-      // Convert to SVG-like format that fabric.js can handle
-      const svgData = canvas.toDataURL("image/png");
-      onPDFProcessed([svgData]);
-      setIsOpen(false);
-    } catch (error) {
+      // Process first page with error handling
+      try {
+        const page = await pdf.getPage(1);
+        const pageData = await processPage(page);
+        onPDFProcessed([pageData]);
+        setIsOpen(false);
+        toast.dismiss();
+        toast.success("PDF processed successfully");
+      } catch (pageError) {
+        console.error("Error processing PDF page:", pageError);
+        throw new Error("Failed to process PDF page. Please try a different PDF.");
+      }
+    } catch (error: any) {
       console.error("Error processing PDF:", error);
+      toast.dismiss();
+      toast.error(error.message || "Failed to process PDF");
     } finally {
       setIsLoading(false);
     }
@@ -87,6 +114,7 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>
             Upload your project in PDF format. We&apos;ll convert it to an editable canvas project.
+            Maximum file size: 50MB.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
