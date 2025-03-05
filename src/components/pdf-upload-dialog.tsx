@@ -41,7 +41,7 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
     setupWorker();
   }, []);
 
-  const processPage = async (page: any, scale: number = 0.5): Promise<string> => {
+  const processPage = async (page: any, scale: number = 1.5): Promise<string> => {
     const viewport = page.getViewport({ scale });
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d")!;
@@ -57,8 +57,8 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
         viewport: viewport,
       }).promise;
 
-      // Convert to compressed JPEG format
-      return canvas.toDataURL("image/jpeg", 0.7);
+      // Convert to high quality JPEG format
+      return canvas.toDataURL("image/jpeg", 1.0);
     } finally {
       // Clean up
       canvas.width = 0;
