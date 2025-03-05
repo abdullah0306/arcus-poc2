@@ -9,6 +9,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import LeftPanel from "@/components/canvas/left-panel";
+import RightPanel from "@/components/canvas/right-panel";
 
 // Constants for zoom limits and steps
 const MIN_ZOOM = 0.1; // 10% of original size
@@ -34,7 +36,7 @@ export default function CanvasPage({ params }: PageProps) {
   // Initialize canvas after component mount
   useEffect(() => {
     const canvas = new fabric.Canvas("canvas", {
-      width: window.innerWidth,
+      width: window.innerWidth * 0.6, // 60% of window width
       height: window.innerHeight,
       backgroundColor: "#ffffff",
       selection: true,
@@ -60,7 +62,7 @@ export default function CanvasPage({ params }: PageProps) {
     const canvas = canvasRef.current;
     const handleResize = () => {
       canvas.setDimensions({
-        width: window.innerWidth,
+        width: window.innerWidth * 0.6, // 60% of window width
         height: window.innerHeight,
       });
       canvas.requestRenderAll();
@@ -240,14 +242,14 @@ export default function CanvasPage({ params }: PageProps) {
   }, [isCanvasReady, params.projectId]);
 
   // Handle zoom button clicks
-  const handleZoom = (zoomIn: boolean) => {
+  const handleZoom = (direction: 'in' | 'out') => {
     if (!canvasRef.current) return;
     
     const canvas = canvasRef.current;
     let currentZoom = canvas.getZoom();
     let newZoom = currentZoom;
 
-    if (zoomIn) {
+    if (direction === 'in') {
       // Zoom in - larger steps when closer to min zoom
       const zoomFactor = Math.max(ZOOM_SPEED, 1 + (MIN_ZOOM / currentZoom) * 0.5);
       newZoom = currentZoom * zoomFactor;
@@ -275,49 +277,44 @@ export default function CanvasPage({ params }: PageProps) {
   };
 
   return (
-    <div ref={containerRef} className="h-screen w-screen relative bg-neutral-100">
-      <canvas id="canvas" />
-      
-      {/* Zoom controls */}
-      <div className="fixed bottom-5 right-5 flex flex-col gap-2">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => handleZoom(true)}
-                className="bg-white p-2 rounded-lg shadow hover:bg-gray-100 transition-colors"
-                disabled={zoom >= MAX_ZOOM}
-              >
-                <ZoomIn className="h-5 w-5 text-gray-700" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Zoom In (Ctrl + Mouse Wheel Up)</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => handleZoom(false)}
-                className="bg-white p-2 rounded-lg shadow hover:bg-gray-100 transition-colors"
-                disabled={zoom <= MIN_ZOOM}
-              >
-                <ZoomOut className="h-5 w-5 text-gray-700" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Zoom Out (Ctrl + Mouse Wheel Down)</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        <div className="text-sm text-center bg-white px-2 py-1 rounded shadow text-gray-700">
-          {Math.round(zoom * 100)}%
+    <div className="flex w-full h-screen overflow-hidden">
+      <LeftPanel />
+      <div className="relative w-[60%] h-full bg-gray-50">
+        <canvas id="canvas" className="absolute left-0 top-0" />
+        <div className="absolute bottom-4 right-4 flex gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleZoom('out')}
+                  className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Zoom Out</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleZoom('in')}
+                  className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Zoom In</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
+      <RightPanel />
     </div>
   );
 }
