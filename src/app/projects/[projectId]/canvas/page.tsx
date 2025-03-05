@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/tooltip";
 import LeftPanel from "@/components/canvas/left-panel";
 import RightPanel from "@/components/canvas/right-panel";
+import TopPanel from "@/components/canvas/top-panel";
+import BottomPanel from "@/components/canvas/bottom-panel";
 
 // Constants for zoom limits and steps
 const MIN_ZOOM = 0.1; // 10% of original size
@@ -37,7 +39,7 @@ export default function CanvasPage({ params }: PageProps) {
   useEffect(() => {
     const canvas = new fabric.Canvas("canvas", {
       width: window.innerWidth * 0.6, // 60% of window width
-      height: window.innerHeight,
+      height: window.innerHeight - 96, // Subtract top and bottom bar heights (48px each)
       backgroundColor: "#ffffff",
       selection: true,
       preserveObjectStacking: true,
@@ -63,7 +65,7 @@ export default function CanvasPage({ params }: PageProps) {
     const handleResize = () => {
       canvas.setDimensions({
         width: window.innerWidth * 0.6, // 60% of window width
-        height: window.innerHeight,
+        height: window.innerHeight - 96, // Subtract top and bottom bar heights
       });
       canvas.requestRenderAll();
     };
@@ -277,44 +279,50 @@ export default function CanvasPage({ params }: PageProps) {
   };
 
   return (
-    <div className="flex w-full h-screen overflow-hidden">
-      <LeftPanel />
-      <div className="relative w-[60%] h-full bg-gray-50">
-        <canvas id="canvas" className="absolute left-0 top-0" />
-        <div className="absolute bottom-4 right-4 flex gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => handleZoom('out')}
-                  className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
-                >
-                  <ZoomOut className="w-4 h-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Zoom Out</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => handleZoom('in')}
-                  className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Zoom In</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+    <div className="flex flex-col w-full h-screen overflow-hidden">
+      <TopPanel />
+      <div className="flex flex-1 w-full min-h-0 overflow-hidden">
+        <LeftPanel />
+        <div className="relative w-[60%] h-full bg-gray-50">
+          <canvas id="canvas" className="absolute left-0 top-0" />
+          <div className="absolute bottom-4 right-4 flex gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleZoom('out')}
+                    className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Zoom Out</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => handleZoom('in')}
+                    className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Zoom In</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
+        <RightPanel />
       </div>
-      <RightPanel />
+      <div className="w-full">
+        <BottomPanel />
+      </div>
     </div>
   );
 }
