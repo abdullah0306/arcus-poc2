@@ -86,17 +86,22 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await getDocument({ data: arrayBuffer }).promise;
       
-      // Process first page with error handling
+      // Process all pages
       try {
-        const page = await pdf.getPage(1);
-        const pageData = await processPage(page);
-        onPDFProcessed([pageData], fileName);
+        const pagePromises = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          pagePromises.push(processPage(page));
+        }
+        const pageImages = await Promise.all(pagePromises);
+        
+        onPDFProcessed(pageImages, fileName);
         setIsOpen(false);
         toast.dismiss();
         toast.success("PDF processed successfully");
       } catch (pageError) {
-        console.error("Error processing PDF page:", pageError);
-        throw new Error("Failed to process PDF page. Please try a different PDF.");
+        console.error("Error processing PDF pages:", pageError);
+        throw new Error("Failed to process PDF pages. Please try a different PDF.");
       }
     } catch (error: any) {
       console.error("Error processing PDF:", error);

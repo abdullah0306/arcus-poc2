@@ -1,20 +1,78 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Download, ChevronLeft, Undo, Redo, Share2, Sun, Moon } from "lucide-react";
+import { Download, ChevronLeft, Undo, Redo, Share2, Sun, Moon, ChevronRight } from "lucide-react";
 import { useCanvasStore } from "@/store/canvas-store";
 import { useThemeStore } from "@/store/theme-store";
+import { usePDFPageStore } from "@/store/pdf-page-store";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useParams } from "next/navigation";
 import { useGetCanvasProject } from "@/features/projects/api/use-get-canvas-project";
+import { fabric } from 'fabric';
 
 export default function TopPanel() {
   const { canvas } = useCanvasStore();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { projectId } = useParams();
   const { data: project } = useGetCanvasProject(projectId as string);
+  const { currentPage, totalPages, setCurrentPage } = usePDFPageStore();
+
+  useEffect(() => {
+    if (project?.canvasData?.pages) {
+      console.log('Project pages:', project.canvasData.pages);
+      console.log('Current page:', currentPage);
+      console.log('Total pages:', project.canvasData.pages.length);
+    }
+  }, [project, currentPage]);
+
+  const handlePageChange = async (newPage: number) => {
+    if (!project?.canvasData?.pages || newPage < 0 || newPage >= project.canvasData.pages.length) return;
+    
+    if (canvas) {
+      // Create a fabric.Image from the new page
+      fabric.Image.fromURL(
+        project.canvasData.pages[newPage],
+        (img) => {
+          // Calculate scale to fit the canvas while maintaining aspect ratio
+          const canvasWidth = canvas.getWidth();
+          const canvasHeight = canvas.getHeight();
+          const scale = Math.min(
+            (canvasWidth * 0.9) / img.width!,
+            (canvasHeight * 0.9) / img.height!
+          );
+
+          // Set image properties
+          img.scale(scale);
+          img.set({
+            left: (canvasWidth - img.width! * scale) / 2,
+            top: (canvasHeight - img.height! * scale) / 2,
+            selectable: false,
+            evented: false,
+            hasControls: false,
+            hasBorders: false,
+            lockMovementX: true,
+            lockMovementY: true,
+            hoverCursor: 'default',
+          });
+
+          // Clear existing objects and add the new image
+          const existingObjects = canvas.getObjects();
+          const backgroundImage = existingObjects.find(obj => !obj.selectable);
+          if (backgroundImage) {
+            canvas.remove(backgroundImage);
+          }
+          canvas.add(img);
+          img.sendToBack();
+          canvas.renderAll();
+        },
+        { crossOrigin: 'anonymous' }
+      );
+    }
+    
+    setCurrentPage(newPage);
+  };
 
   const handleExport = () => {
     if (!canvas) return;
@@ -95,11 +153,59 @@ export default function TopPanel() {
         </div>
 
         {/* Center Section */}
-        <div className="flex-1 flex justify-center">
-          <h1 className={cn(
-            "font-medium transition-colors",
-            isDarkMode ? "text-orange-100" : "text-zinc-900"
-          )}>{project?.name || "Untitled Project"}</h1>
+        <div className="flex-1 flex justify-center items-center gap-4">
+          <button 
+            className={cn(
+              "p-2 rounded-lg transition-colors group",
+              isDarkMode 
+                ? "hover:bg-orange-500/10" 
+                : "hover:bg-orange-500/10",
+              currentPage === 0 && "opacity-50 cursor-not-allowed"
+            )}
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 0}
+          >
+            <ChevronLeft className={cn(
+              "w-4 h-4 transition-colors",
+              isDarkMode 
+                ? "text-orange-100 group-hover:text-orange-400" 
+                : "text-zinc-900 group-hover:text-orange-500"
+            )} />
+          </button>
+          
+          <div className="flex items-center gap-2">
+            <h1 className={cn(
+              "font-medium transition-colors",
+              isDarkMode ? "text-orange-100" : "text-zinc-900"
+            )}>{project?.name || "Untitled Project"}</h1>
+            {project?.canvasData?.pages && project.canvasData.pages.length > 1 && (
+              <span className={cn(
+                "text-sm",
+                isDarkMode ? "text-orange-100/70" : "text-zinc-600"
+              )}>
+                Page {currentPage + 1} of {project.canvasData.pages.length}
+              </span>
+            )}
+          </div>
+
+          <button 
+            className={cn(
+              "p-2 rounded-lg transition-colors group",
+              isDarkMode 
+                ? "hover:bg-orange-500/10" 
+                : "hover:bg-orange-500/10",
+              !project?.canvasData?.pages || currentPage >= project.canvasData.pages.length - 1 && "opacity-50 cursor-not-allowed"
+            )}
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={!project?.canvasData?.pages || currentPage >= project.canvasData.pages.length - 1}
+          >
+            <ChevronRight className={cn(
+              "w-4 h-4 transition-colors",
+              isDarkMode 
+                ? "text-orange-100 group-hover:text-orange-400" 
+                : "text-zinc-900 group-hover:text-orange-500"
+            )} />
+          </button>
         </div>
 
         {/* Right Section */}
