@@ -9,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Progress } from "@/components/ui/progress";
 import LeftPanel from "@/components/canvas/left-panel";
 import RightPanel from "@/components/canvas/right-panel";
 import TopPanel from "@/components/canvas/top-panel";
@@ -34,6 +35,8 @@ export default function CanvasPage({ params }: PageProps) {
   const lastPosX = useRef<number>(0);
   const lastPosY = useRef<number>(0);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load initial canvas data
   useEffect(() => {
@@ -41,15 +44,20 @@ export default function CanvasPage({ params }: PageProps) {
 
     const loadCanvasData = async () => {
       try {
+        setLoadingProgress(10);
         const response = await fetch(`/api/canvas-projects/${params.projectId}`);
         if (!response.ok) return;
 
+        setLoadingProgress(20);
         const project = await response.json();
         if (project.canvasData?.pages?.length > 0) {
           handlePDFProcessed(project.canvasData.pages);
+        } else {
+          setIsLoading(false);
         }
       } catch (error) {
         console.error("Error loading canvas data:", error);
+        setIsLoading(false);
       }
     };
 
@@ -64,7 +72,10 @@ export default function CanvasPage({ params }: PageProps) {
     const firstPage = pages[0];
 
     // Create a fabric.Image from the data URL
+    setLoadingProgress(30);
     fabric.Image.fromURL(firstPage, (img) => {
+      setLoadingProgress(60);
+      
       // Calculate scale to fit the canvas while maintaining aspect ratio
       const canvasWidth = canvas.getWidth();
       const canvasHeight = canvas.getHeight();
@@ -72,6 +83,8 @@ export default function CanvasPage({ params }: PageProps) {
         (canvasWidth * 0.9) / img.width!,
         (canvasHeight * 0.9) / img.height!
       );
+
+      setLoadingProgress(80);
 
       // Set image properties
       img.scale(scale);
@@ -94,6 +107,11 @@ export default function CanvasPage({ params }: PageProps) {
       // Send the image to the back and lock it
       img.sendToBack();
       canvas.renderAll();
+
+      setLoadingProgress(100);
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 500); // Keep progress bar for a moment before hiding
     });
   };
 
@@ -308,6 +326,16 @@ export default function CanvasPage({ params }: PageProps) {
       <div className="flex flex-1 w-full min-h-0 overflow-hidden">
         <LeftPanel />
         <div className="relative w-[60%] h-full bg-gray-50">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-50">
+              <div className="w-64 space-y-4">
+                <Progress value={loadingProgress} />
+                <p className="text-sm text-center text-gray-500">
+                  Loading canvas {loadingProgress}%
+                </p>
+              </div>
+            </div>
+          )}
           <div id="canvas-container" className="absolute inset-0">
             <div className="canvas-wrapper">
               <canvas id="canvas" />

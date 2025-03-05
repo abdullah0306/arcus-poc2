@@ -4,6 +4,14 @@ import { canvasProjects } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+interface CanvasData {
+  version: string;
+  pages: string[];
+  currentPage: number;
+  totalChunks?: number;
+  chunkIndex?: number;
+}
+
 export async function GET(
   req: Request,
   { params }: { params: { projectId: string } }
@@ -46,13 +54,30 @@ export async function PATCH(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { name, canvasData } = await req.json();
+    const body = await req.json();
+    const { name, canvasData } = body;
+
+    // Create default canvas data
+    const defaultCanvasData: CanvasData = {
+      version: "1.0",
+      pages: [],
+      currentPage: 0,
+    };
+
+    // Merge with provided data if it exists
+    const finalCanvasData: CanvasData = canvasData ? {
+      ...defaultCanvasData,
+      ...canvasData,
+      pages: canvasData.pages || defaultCanvasData.pages,
+      currentPage: canvasData.currentPage || defaultCanvasData.currentPage,
+      version: canvasData.version || defaultCanvasData.version,
+    } : defaultCanvasData;
 
     const updatedProject = await db
       .update(canvasProjects)
       .set({
         name: name,
-        canvasData: canvasData ? JSON.stringify(canvasData) : undefined,
+        canvasData: finalCanvasData,
       })
       .where(
         and(
