@@ -12,6 +12,7 @@ import {
   Image as ImageIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useThemeStore } from "@/store/theme-store";
 
 const tools = [
   { id: 'select', icon: MousePointer2, label: 'Select' },
@@ -25,6 +26,7 @@ const tools = [
 export default function BottomPanel() {
   const [activeTool, setActiveTool] = useState('select');
   const [zoom, setZoom] = useState(100);
+  const { isDarkMode } = useThemeStore();
 
   const handleZoom = (type: 'in' | 'out') => {
     const change = type === 'in' ? 10 : -10;
@@ -32,7 +34,12 @@ export default function BottomPanel() {
   };
 
   return (
-    <div className="h-16 bg-gradient-to-r from-zinc-900 to-zinc-950 border-t border-orange-900/20">
+    <div className={cn(
+      "h-16 border-t transition-colors",
+      isDarkMode 
+        ? "bg-gradient-to-r from-zinc-900 to-zinc-950 border-orange-900/20" 
+        : "bg-gradient-to-r from-zinc-100 to-zinc-200 border-orange-500/20"
+    )}>
       <div className="h-full px-4 flex items-center justify-between">
         {/* Left Section - Tools */}
         <div className="flex items-center gap-1">
@@ -43,12 +50,21 @@ export default function BottomPanel() {
               className={cn(
                 "p-2 rounded-lg transition-all group relative",
                 activeTool === tool.id 
-                  ? "bg-orange-500/20 text-orange-400" 
-                  : "hover:bg-orange-500/10 text-orange-100 hover:text-orange-400"
+                  ? isDarkMode 
+                    ? "bg-orange-500/20 text-orange-400"
+                    : "bg-orange-500/20 text-orange-500"
+                  : isDarkMode
+                    ? "hover:bg-orange-500/10 text-orange-100 hover:text-orange-400"
+                    : "hover:bg-orange-500/10 text-zinc-900 hover:text-orange-500"
               )}
             >
               <tool.icon className="w-5 h-5" />
-              <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs bg-zinc-800 text-orange-100 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className={cn(
+                "absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity",
+                isDarkMode
+                  ? "bg-zinc-800 text-orange-100"
+                  : "bg-zinc-200 text-zinc-900"
+              )}>
                 {tool.label}
               </span>
             </button>
@@ -62,18 +78,41 @@ export default function BottomPanel() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => handleZoom('out')}
-            className="p-2 hover:bg-orange-500/10 rounded-lg transition-colors group"
+            className={cn(
+              "p-2 rounded-lg transition-colors group",
+              isDarkMode 
+                ? "hover:bg-orange-500/10" 
+                : "hover:bg-orange-500/10"
+            )}
           >
-            <ZoomOut className="w-4 h-4 text-orange-100 group-hover:text-orange-400" />
+            <ZoomOut className={cn(
+              "w-4 h-4 transition-colors",
+              isDarkMode 
+                ? "text-orange-100 group-hover:text-orange-400" 
+                : "text-zinc-900 group-hover:text-orange-500"
+            )} />
           </button>
-          <span className="text-sm text-orange-100 min-w-[40px] text-center">
+          <span className={cn(
+            "text-sm min-w-[40px] text-center transition-colors",
+            isDarkMode ? "text-orange-100" : "text-zinc-900"
+          )}>
             {zoom}%
           </span>
           <button
             onClick={() => handleZoom('in')}
-            className="p-2 hover:bg-orange-500/10 rounded-lg transition-colors group"
+            className={cn(
+              "p-2 rounded-lg transition-colors group",
+              isDarkMode 
+                ? "hover:bg-orange-500/10" 
+                : "hover:bg-orange-500/10"
+            )}
           >
-            <ZoomIn className="w-4 h-4 text-orange-100 group-hover:text-orange-400" />
+            <ZoomIn className={cn(
+              "w-4 h-4 transition-colors",
+              isDarkMode 
+                ? "text-orange-100 group-hover:text-orange-400" 
+                : "text-zinc-900 group-hover:text-orange-500"
+            )} />
           </button>
         </div>
       </div>

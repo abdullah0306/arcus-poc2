@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
+import { useParams } from "next/navigation";
 import { ZoomIn, ZoomOut } from "lucide-react";
 import {
   Tooltip,
@@ -11,25 +12,23 @@ import {
 } from "@/components/ui/tooltip";
 import { Progress } from "@/components/ui/progress";
 import { useCanvasStore } from "@/store/canvas-store";
+import { useThemeStore } from "@/store/theme-store";
 import LeftPanel from "@/components/canvas/left-panel";
 import RightPanel from "@/components/canvas/right-panel";
 import TopPanel from "@/components/canvas/top-panel";
 import BottomPanel from "@/components/canvas/bottom-panel";
+import { cn } from "@/lib/utils";
 
 // Constants for zoom limits and steps
 const MIN_ZOOM = 0.1; // 10% of original size
 const MAX_ZOOM = 20; // 2000% of original size
 const ZOOM_SPEED = 1.1; // 10% change per zoom step
 
-interface PageProps {
-  params: {
-    projectId: string;
-  };
-}
-
-export default function CanvasPage({ params }: PageProps) {
+export default function CanvasPage() {
+  const { projectId } = useParams();
   const canvasRef = useRef<fabric.Canvas | null>(null);
   const { setCanvas } = useCanvasStore();
+  const { isDarkMode } = useThemeStore();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isCanvasReady, setIsCanvasReady] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -76,12 +75,12 @@ export default function CanvasPage({ params }: PageProps) {
 
   // Load initial canvas data
   useEffect(() => {
-    if (!isCanvasReady || !canvasRef.current || !params.projectId) return;
+    if (!isCanvasReady || !canvasRef.current || !projectId) return;
 
     const loadCanvasData = async () => {
       try {
         setLoadingProgress(10);
-        const response = await fetch(`/api/canvas-projects/${params.projectId}`);
+        const response = await fetch(`/api/canvas-projects/${projectId}`);
         if (!response.ok) {
           setIsLoading(false);
           return;
@@ -102,7 +101,7 @@ export default function CanvasPage({ params }: PageProps) {
     };
 
     loadCanvasData();
-  }, [isCanvasReady, params.projectId]);
+  }, [isCanvasReady, projectId]);
 
   // Handle adding PDF page to canvas
   const handlePDFProcessed = (pages: string[]) => {
@@ -325,7 +324,10 @@ export default function CanvasPage({ params }: PageProps) {
   };
 
   return (
-    <div className="flex flex-col w-full h-screen overflow-hidden">
+    <div className={cn(
+      "flex h-screen w-screen flex-col overflow-hidden",
+      isDarkMode ? "bg-black" : "bg-zinc-50"
+    )}>
       <TopPanel />
       <div className="flex flex-1 w-full min-h-0 overflow-hidden">
         <LeftPanel />

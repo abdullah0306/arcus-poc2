@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Switch } from "@/components/ui/switch";
 import { ChevronDown } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+import { useThemeStore } from "@/store/theme-store";
 
 interface APIOption {
   id: string;
@@ -112,65 +113,146 @@ const doorWindowSection: APISection = {
 };
 
 export default function RightPanel() {
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-
+  const { isDarkMode } = useThemeStore();
+  
   return (
-    <div className="w-[280px] bg-gradient-to-b from-zinc-900 to-zinc-950 text-white border-l border-orange-900/20 flex flex-col">
-      <div className="flex items-center justify-between p-3 border-b border-orange-500/10 bg-black/20">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-orange-500" />
-          <h2 className="text-sm font-medium text-orange-100">Arcus AI</h2>
+    <div className={cn(
+      "w-[300px] border-l transition-colors",
+      isDarkMode 
+        ? "bg-gradient-to-b from-zinc-900 to-zinc-950 border-orange-900/20" 
+        : "bg-gradient-to-b from-zinc-100 to-zinc-200 border-orange-500/20"
+    )}>
+      <div className={cn(
+        "p-3 border-b transition-colors",
+        isDarkMode 
+          ? "border-orange-500/10 bg-black/20"
+          : "border-orange-500/10 bg-zinc-50/20"
+      )}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "h-2 w-2 rounded-full",
+              isDarkMode ? "bg-orange-500" : "bg-orange-500"
+            )} />
+            <h2 className={cn(
+              "text-sm font-medium",
+              isDarkMode ? "text-orange-100" : "text-zinc-900"
+            )}>Arcus AI</h2>
+          </div>
+          <span className={cn(
+            "text-xs",
+            isDarkMode ? "text-orange-400" : "text-orange-500"
+          )}>
+            Step 1 of 4
+          </span>
         </div>
-        <span className="text-xs text-orange-300">Step 1 of 4</span>
       </div>
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="p-4 space-y-4">
-          {apiOptions.map((option) => (
-            <div 
-              key={option.id}
-              className={`group transition-colors rounded-lg p-3 cursor-pointer
-                ${selectedOption === option.id ? 'bg-orange-500/10' : 'hover:bg-orange-500/5'}`}
-              onClick={() => setSelectedOption(option.id === selectedOption ? null : option.id)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg">{option.icon}</span>
-                  <div>
-                    <h3 className="text-sm font-medium text-orange-100">{option.title}</h3>
-                    <p className="text-xs text-orange-300/80">{option.description}</p>
-                  </div>
-                </div>
-                <Switch 
-                  checked={option.enabled}
-                  className="data-[state=checked]:bg-orange-500"
-                />
+
+      <div className="p-4 space-y-4">
+        {/* Detection Options */}
+        <div className="space-y-3">
+          {/* Object Detection */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⚪</span>
+                <span className={cn(
+                  "text-sm font-medium",
+                  isDarkMode ? "text-orange-100" : "text-zinc-900"
+                )}>
+                  Object Detection
+                </span>
               </div>
-              
-              {selectedOption === option.id && option.id === "doors-windows" && (
-                <div className="mt-4 pl-8 border-l border-orange-500/20">
-                  <h4 className="text-sm font-medium text-orange-100 mb-3">{doorWindowSection.title}</h4>
-                  <div className="space-y-3">
-                    {doorWindowSection.options.map((subOption) => (
-                      <div 
-                        key={subOption.id}
-                        className="flex items-center gap-3 group/item hover:bg-orange-500/5 p-2 rounded-md transition-colors"
-                      >
-                        <div className="h-2 w-2 rounded-full bg-orange-500" />
-                        <div>
-                          <h5 className="text-sm text-orange-100">{subOption.title}</h5>
-                          <p className="text-xs text-orange-300/80">{subOption.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <Switch className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"} />
             </div>
-          ))}
+            <p className={cn(
+              "text-xs pl-7",
+              isDarkMode ? "text-orange-100/70" : "text-zinc-600"
+            )}>
+              Add exclusions and obstructions
+            </p>
+          </div>
+
+          {/* Room Detection */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">⬜</span>
+                <span className={cn(
+                  "text-sm font-medium",
+                  isDarkMode ? "text-orange-100" : "text-zinc-900"
+                )}>
+                  Room Detection
+                </span>
+              </div>
+              <Switch className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"} />
+            </div>
+            <p className={cn(
+              "text-xs pl-7",
+              isDarkMode ? "text-orange-100/70" : "text-zinc-600"
+            )}>
+              Detects and identifies rooms in the space.
+            </p>
+          </div>
+
+          {/* Doors and Windows */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🚪</span>
+                <span className={cn(
+                  "text-sm font-medium",
+                  isDarkMode ? "text-orange-100" : "text-zinc-900"
+                )}>
+                  Doors and Windows
+                </span>
+              </div>
+              <Switch className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"} />
+            </div>
+            <p className={cn(
+              "text-xs pl-7",
+              isDarkMode ? "text-orange-100/70" : "text-zinc-600"
+            )}>
+              Identifies doors and windows in the area.
+            </p>
+          </div>
+
+          {/* Zones Detection */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">↗️</span>
+                <span className={cn(
+                  "text-sm font-medium",
+                  isDarkMode ? "text-orange-100" : "text-zinc-900"
+                )}>
+                  Inclusive and Exclusive Zones
+                </span>
+              </div>
+              <Switch className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"} />
+            </div>
+            <p className={cn(
+              "text-xs pl-7",
+              isDarkMode ? "text-orange-100/70" : "text-zinc-600"
+            )}>
+              Detects accessible and restricted zones.
+            </p>
+          </div>
         </div>
       </div>
-      <div className="p-4 border-t border-orange-500/10 bg-black/20">
-        <button className="w-full py-2 px-4 bg-orange-500 hover:bg-orange-600 transition-colors rounded-lg text-sm font-medium">
+
+      <div className={cn(
+        "p-4 border-t transition-colors",
+        isDarkMode 
+          ? "border-orange-500/10 bg-black/20"
+          : "border-orange-500/10 bg-zinc-50/20"
+      )}>
+        <button className={cn(
+          "w-full py-2 rounded-lg text-sm font-medium transition-colors",
+          isDarkMode
+            ? "bg-orange-500 hover:bg-orange-600 text-white"
+            : "bg-orange-500 hover:bg-orange-600 text-white"
+        )}>
           Next
         </button>
       </div>
