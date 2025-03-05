@@ -78,12 +78,22 @@ export default function CanvasPage({ params }: PageProps) {
       img.set({
         left: (canvasWidth - img.width! * scale) / 2,
         top: (canvasHeight - img.height! * scale) / 2,
+        selectable: false, // Make image unselectable
+        evented: false, // Disable all events on the image
+        hasControls: false, // Remove resize controls
+        hasBorders: false, // Remove borders
+        lockMovementX: true, // Lock horizontal movement
+        lockMovementY: true, // Lock vertical movement
+        hoverCursor: 'default', // Use default cursor on hover
       });
 
       // Clear existing objects and add the image
       canvas.clear();
       canvas.add(img);
-      canvas.requestRenderAll();
+      
+      // Send the image to the back and lock it
+      img.sendToBack();
+      canvas.renderAll();
     });
   };
 
