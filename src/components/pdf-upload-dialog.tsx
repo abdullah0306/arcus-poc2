@@ -16,7 +16,7 @@ import { getDocument, GlobalWorkerOptions, version } from "pdfjs-dist";
 import { toast } from "sonner";
 
 interface PDFUploadDialogProps {
-  onPDFProcessed: (pages: string[]) => void;
+  onPDFProcessed: (pages: string[], fileName: string) => void;
 }
 
 export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
@@ -74,6 +74,9 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
       setIsLoading(true);
       toast.loading("Processing PDF...");
 
+      // Get file name without .pdf extension
+      const fileName = file.name.replace(/\.pdf$/i, '');
+
       // Validate file size
       if (file.size > 50 * 1024 * 1024) { // 50MB limit
         throw new Error("File size too large. Please upload a PDF smaller than 50MB.");
@@ -87,7 +90,7 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
       try {
         const page = await pdf.getPage(1);
         const pageData = await processPage(page);
-        onPDFProcessed([pageData]);
+        onPDFProcessed([pageData], fileName);
         setIsOpen(false);
         toast.dismiss();
         toast.success("PDF processed successfully");

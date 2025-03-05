@@ -69,7 +69,7 @@ export default function ProjectsPage() {
     }
   };
 
-  const handlePDFProcessed = async (pages: string[]) => {
+  const handlePDFProcessed = async (pages: string[], fileName: string) => {
     try {
       setIsLoading(true);
       toast.loading("Creating project...");
@@ -90,7 +90,7 @@ export default function ProjectsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: "PDF Project",
+          name: fileName,
           canvasData: {
             version: "1.0",
             pages: [chunks[0]], // Send first chunk initially
