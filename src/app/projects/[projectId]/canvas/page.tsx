@@ -37,9 +37,32 @@ export default function CanvasPage({ params }: PageProps) {
 
   // Initialize canvas after component mount
   useEffect(() => {
+    const container = document.getElementById('canvas-container');
+    if (!container) return;
+
+    // Create a style element for our custom canvas styles
+    const style = document.createElement('style');
+    style.textContent = `
+      .canvas-wrapper {
+        transform-style: flat;
+        perspective: none;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      .canvas-container {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        transform-origin: 0 0;
+      }
+    `;
+    document.head.appendChild(style);
+
     const canvas = new fabric.Canvas("canvas", {
-      width: window.innerWidth * 0.6, // 60% of window width
-      height: window.innerHeight - 96, // Subtract top and bottom bar heights (48px each)
+      width: container.clientWidth,
+      height: container.clientHeight,
       backgroundColor: "#ffffff",
       selection: true,
       preserveObjectStacking: true,
@@ -54,6 +77,7 @@ export default function CanvasPage({ params }: PageProps) {
         canvasRef.current.dispose();
         canvasRef.current = null;
       }
+      document.head.removeChild(style);
     };
   }, []);
 
@@ -62,10 +86,13 @@ export default function CanvasPage({ params }: PageProps) {
     if (!isCanvasReady || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
+    const container = document.getElementById('canvas-container');
+    if (!container) return;
+
     const handleResize = () => {
       canvas.setDimensions({
-        width: window.innerWidth * 0.6, // 60% of window width
-        height: window.innerHeight - 96, // Subtract top and bottom bar heights
+        width: container.clientWidth,
+        height: container.clientHeight
       });
       canvas.requestRenderAll();
     };
@@ -79,10 +106,9 @@ export default function CanvasPage({ params }: PageProps) {
 
   // Pan handlers
   useEffect(() => {
-    if (!isCanvasReady || !canvasRef.current || !canvasElementRef.current) return;
+    if (!isCanvasReady || !canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const canvasElement = canvasElementRef.current;
 
     const handleMouseDown = (opt: fabric.IEvent) => {
       const evt = opt.e as MouseEvent;
@@ -92,6 +118,8 @@ export default function CanvasPage({ params }: PageProps) {
         lastPosX.current = evt.clientX;
         lastPosY.current = evt.clientY;
         canvas.setCursor('grabbing');
+        evt.preventDefault();
+        evt.stopPropagation();
       }
     };
 
@@ -99,17 +127,16 @@ export default function CanvasPage({ params }: PageProps) {
       if (!isDragging.current) return;
 
       const evt = opt.e as MouseEvent;
-      const vpt = canvas.viewportTransform!;
+      evt.preventDefault();
+      evt.stopPropagation();
       
-      // Calculate delta movement
+      const vpt = canvas.viewportTransform!;
       const deltaX = evt.clientX - lastPosX.current;
       const deltaY = evt.clientY - lastPosY.current;
       
-      // Update viewport transform
       vpt[4] += deltaX;
       vpt[5] += deltaY;
       
-      // Update last position
       lastPosX.current = evt.clientX;
       lastPosY.current = evt.clientY;
       
@@ -123,26 +150,16 @@ export default function CanvasPage({ params }: PageProps) {
       canvas.setCursor('default');
     };
 
-    // Prevent context menu on right-click
-    const handleContextMenu = (e: Event) => {
-      e.preventDefault();
-      return false;
-    };
-
     canvas.on('mouse:down', handleMouseDown);
     canvas.on('mouse:move', handleMouseMove);
     canvas.on('mouse:up', handleMouseUp);
-    canvasElement.addEventListener('contextmenu', handleContextMenu);
+    canvas.on('mouse:out', handleMouseUp);
 
     return () => {
-      if (canvasRef.current) {
-        canvas.off('mouse:down', handleMouseDown);
-        canvas.off('mouse:move', handleMouseMove);
-        canvas.off('mouse:up', handleMouseUp);
-      }
-      if (canvasElementRef.current) {
-        canvasElement.removeEventListener('contextmenu', handleContextMenu);
-      }
+      canvas.off('mouse:down', handleMouseDown);
+      canvas.off('mouse:move', handleMouseMove);
+      canvas.off('mouse:up', handleMouseUp);
+      canvas.off('mouse:out', handleMouseUp);
     };
   }, [isCanvasReady]);
 
@@ -153,49 +170,45 @@ export default function CanvasPage({ params }: PageProps) {
     const canvas = canvasRef.current;
     const handleWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
+      
+      // Only handle zoom if the event is within the canvas container
+      const container = document.getElementById('canvas-container');
+      if (!container?.contains(e.target as Node)) return;
+      
       e.preventDefault();
+      e.stopPropagation();
       
       const delta = e.deltaY;
       let currentZoom = canvas.getZoom();
       let newZoom = currentZoom;
 
-      // Calculate new zoom
       if (delta > 0) {
-        // Zoom out - faster when closer to max zoom
-        const zoomFactor = Math.max(ZOOM_SPEED, 1 + (currentZoom / MAX_ZOOM) * 0.5);
-        newZoom = currentZoom / zoomFactor;
+        newZoom = currentZoom / ZOOM_SPEED;
       } else {
-        // Zoom in - faster when closer to min zoom
-        const zoomFactor = Math.max(ZOOM_SPEED, 1 + (MIN_ZOOM / currentZoom) * 0.5);
-        newZoom = currentZoom * zoomFactor;
+        newZoom = currentZoom * ZOOM_SPEED;
       }
 
-      // Clamp zoom between MIN_ZOOM and MAX_ZOOM
       newZoom = Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM);
 
-      // Get the mouse position
-      const point = {
-        x: e.offsetX,
-        y: e.offsetY,
-      };
+      // Get pointer position relative to canvas container
+      const rect = canvas.getElement().getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
 
-      // Apply zoom
-      canvas.zoomToPoint(new fabric.Point(point.x, point.y), newZoom);
+      canvas.zoomToPoint(new fabric.Point(x, y), newZoom);
       setZoom(newZoom);
-
-      // Ensure the viewport transform is updated
-      canvas.requestRenderAll();
     };
 
-    const canvasEl = document.getElementById('canvas');
-    if (canvasEl) {
-      canvasEl.addEventListener('wheel', handleWheel, { passive: false });
+    // Attach wheel event to the canvas container instead of canvas
+    const container = document.getElementById('canvas-container');
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false });
     }
 
     return () => {
-      const canvasEl = document.getElementById('canvas');
-      if (canvasEl) {
-        canvasEl.removeEventListener('wheel', handleWheel);
+      const container = document.getElementById('canvas-container');
+      if (container) {
+        container.removeEventListener('wheel', handleWheel);
       }
     };
   }, [isCanvasReady]);
@@ -252,16 +265,11 @@ export default function CanvasPage({ params }: PageProps) {
     let newZoom = currentZoom;
 
     if (direction === 'in') {
-      // Zoom in - larger steps when closer to min zoom
-      const zoomFactor = Math.max(ZOOM_SPEED, 1 + (MIN_ZOOM / currentZoom) * 0.5);
-      newZoom = currentZoom * zoomFactor;
+      newZoom = currentZoom * ZOOM_SPEED;
     } else {
-      // Zoom out - larger steps when closer to max zoom
-      const zoomFactor = Math.max(ZOOM_SPEED, 1 + (currentZoom / MAX_ZOOM) * 0.5);
-      newZoom = currentZoom / zoomFactor;
+      newZoom = currentZoom / ZOOM_SPEED;
     }
     
-    // Clamp zoom between MIN_ZOOM and MAX_ZOOM
     newZoom = Math.min(Math.max(newZoom, MIN_ZOOM), MAX_ZOOM);
     
     // Get canvas center point
@@ -270,11 +278,8 @@ export default function CanvasPage({ params }: PageProps) {
       y: canvas.getHeight() / 2
     };
     
-    // Apply zoom to center
     canvas.zoomToPoint(new fabric.Point(center.x, center.y), newZoom);
     setZoom(newZoom);
-    
-    // Ensure the viewport transform is updated
     canvas.requestRenderAll();
   };
 
@@ -284,8 +289,12 @@ export default function CanvasPage({ params }: PageProps) {
       <div className="flex flex-1 w-full min-h-0 overflow-hidden">
         <LeftPanel />
         <div className="relative w-[60%] h-full bg-gray-50">
-          <canvas id="canvas" className="absolute left-0 top-0" />
-          <div className="absolute bottom-4 right-4 flex gap-2">
+          <div id="canvas-container" className="absolute inset-0">
+            <div className="canvas-wrapper">
+              <canvas id="canvas" />
+            </div>
+          </div>
+          <div className="absolute bottom-4 right-4 flex gap-2 z-10">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
