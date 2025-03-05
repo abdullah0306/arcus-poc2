@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, ChevronLeft, Undo, Redo, Share2 } from "lucide-react";
 import { useCanvasStore } from "@/store/canvas-store";
 
 const TopPanel = () => {
@@ -16,7 +16,7 @@ const TopPanel = () => {
       const dataURL = canvas.toDataURL({
         format: 'png',
         quality: 1,
-        multiplier: 2 // For better quality export
+        multiplier: 2
       });
 
       // Create a temporary link element
@@ -24,45 +24,55 @@ const TopPanel = () => {
       link.href = dataURL;
       link.download = 'canvas-export.png';
       document.body.appendChild(link);
-      
-      // Trigger download
       link.click();
-      
-      // Clean up
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error exporting canvas:', error);
-      // You might want to show a toast notification here
     }
   };
 
   return (
-    <div className="h-12 w-full bg-gray-100 border-b border-gray-200 flex items-center px-4 gap-4">
-      {/* Project Info */}
-      <div className="flex items-center gap-2 text-gray-700">
-        <span className="font-semibold">Project</span>
-        <span className="text-gray-400">|</span>
-        <span className="text-sm">Untitled</span>
-      </div>
+    <div className="h-16 bg-gradient-to-r from-zinc-900 to-zinc-950 border-b border-orange-900/20">
+      <div className="h-full px-4 flex items-center justify-between">
+        {/* Left Section */}
+        <div className="flex items-center gap-4">
+          <button className="p-2 hover:bg-orange-500/10 rounded-lg transition-colors group">
+            <ChevronLeft className="w-5 h-5 text-orange-100 group-hover:text-orange-400" />
+          </button>
+          <div className="h-6 w-px bg-orange-500/20" />
+          <div className="flex items-center gap-2">
+            <button className="p-2 hover:bg-orange-500/10 rounded-lg transition-colors group disabled:opacity-50"
+                    disabled>
+              <Undo className="w-4 h-4 text-orange-100 group-hover:text-orange-400" />
+            </button>
+            <button className="p-2 hover:bg-orange-500/10 rounded-lg transition-colors group disabled:opacity-50"
+                    disabled>
+              <Redo className="w-4 h-4 text-orange-100 group-hover:text-orange-400" />
+            </button>
+          </div>
+        </div>
 
-      {/* Tools */}
-      <div className="flex-1 flex items-center justify-center gap-4">
-        <button className="p-2 hover:bg-gray-200 rounded text-gray-700">Tool 1</button>
-        <button className="p-2 hover:bg-gray-200 rounded text-gray-700">Tool 2</button>
-        <button className="p-2 hover:bg-gray-200 rounded text-gray-700">Tool 3</button>
-      </div>
+        {/* Center Section */}
+        <div className="flex-1 flex justify-center">
+          <h1 className="text-orange-100 font-medium">Untitled Project</h1>
+        </div>
 
-      {/* Right Actions */}
-      <div className="flex items-center gap-2">
-        <Button 
-          onClick={handleExport}
-          className="flex items-center gap-2"
-          variant="outline"
-          disabled={!canvas}
-        >
-          <Download className="w-4 h-4" />
-          Export as PNG
-        </Button>
+        {/* Right Section */}
+        <div className="flex items-center gap-3">
+          <Button 
+            onClick={handleExport}
+            className="flex items-center gap-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-100"
+            variant="ghost"
+            size="sm"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </Button>
+          <div className="h-6 w-px bg-orange-500/20" />
+          <button className="p-2 hover:bg-orange-500/10 rounded-lg transition-colors group">
+            <Share2 className="w-4 h-4 text-orange-100 group-hover:text-orange-400" />
+          </button>
+        </div>
       </div>
     </div>
   );
