@@ -17,17 +17,56 @@ interface Layer {
 const dummyLayers: Layer[] = [
   {
     id: '1',
-    name: 'Auto M...',
+    name: 'Floor Plan',
     visible: true,
     locked: false,
-    type: 'layer'
+    type: 'group',
+    children: [
+      {
+        id: '1-1',
+        name: 'Measurements',
+        visible: true,
+        locked: false,
+        type: 'layer'
+      },
+      {
+        id: '1-2',
+        name: 'Grid',
+        visible: true,
+        locked: false,
+        type: 'layer'
+      }
+    ]
   },
   {
     id: '2',
     name: 'Doors and Windows',
     visible: true,
-    locked: true,
-    type: 'layer'
+    locked: false,
+    type: 'group',
+    children: [
+      {
+        id: '2-1',
+        name: 'Entry Doors',
+        visible: true,
+        locked: false,
+        type: 'layer'
+      },
+      {
+        id: '2-2',
+        name: 'Windows',
+        visible: true,
+        locked: false,
+        type: 'layer'
+      },
+      {
+        id: '2-3',
+        name: 'Emergency Exits',
+        visible: true,
+        locked: false,
+        type: 'layer'
+      }
+    ]
   },
   {
     id: '3',
@@ -38,14 +77,51 @@ const dummyLayers: Layer[] = [
     children: [
       {
         id: '3-1',
-        name: 'Living Room',
+        name: 'Living Areas',
         visible: true,
         locked: false,
         type: 'layer'
       },
       {
         id: '3-2',
-        name: 'Kitchen',
+        name: 'Kitchen & Dining',
+        visible: true,
+        locked: false,
+        type: 'layer'
+      },
+      {
+        id: '3-3',
+        name: 'Bedrooms',
+        visible: true,
+        locked: false,
+        type: 'layer'
+      },
+      {
+        id: '3-4',
+        name: 'Bathrooms',
+        visible: true,
+        locked: false,
+        type: 'layer'
+      }
+    ]
+  },
+  {
+    id: '4',
+    name: 'Safety Features',
+    visible: true,
+    locked: false,
+    type: 'group',
+    children: [
+      {
+        id: '4-1',
+        name: 'Fire Alarms',
+        visible: true,
+        locked: false,
+        type: 'layer'
+      },
+      {
+        id: '4-2',
+        name: 'Emergency Routes',
         visible: true,
         locked: false,
         type: 'layer'
@@ -129,13 +205,13 @@ export default function LeftPanel() {
   
   return (
     <div className={cn(
-      "w-[300px] border-r transition-colors overflow-y-auto",
+      "w-[300px] border-r transition-colors flex flex-col h-[calc(100vh-48px)]", 
       isDarkMode 
         ? "bg-gradient-to-b from-zinc-900 to-zinc-950 border-orange-900/20" 
         : "bg-gradient-to-b from-zinc-100 to-zinc-200 border-orange-500/20"
     )}>
       <div className={cn(
-        "p-3 border-b transition-colors",
+        "p-3 border-b transition-colors flex-shrink-0", 
         isDarkMode 
           ? "border-orange-500/10 bg-black/20"
           : "border-orange-500/10 bg-zinc-50/20"
@@ -157,7 +233,7 @@ export default function LeftPanel() {
           )} />
         </div>
       </div>
-      <div className="p-2 space-y-1">
+      <div className="p-2 space-y-1 overflow-y-auto flex-grow"> 
         {dummyLayers.map(layer => (
           <LayerItem key={layer.id} layer={layer} />
         ))}

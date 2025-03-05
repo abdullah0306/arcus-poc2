@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/theme-store";
+import { useState } from "react";
 
 interface APIOption {
   id: string;
@@ -11,6 +12,8 @@ interface APIOption {
   description: string;
   enabled: boolean;
   icon: string;
+  progress: number;
+  details: string[];
 }
 
 interface SubOption {
@@ -28,60 +31,56 @@ interface APISection {
 
 const apiOptions: APIOption[] = [
   {
-    id: "object-detection",
-    title: "Object Detection",
-    description: "Add exclusions and obstructions",
+    id: "doors-windows",
+    title: "Doors and Windows Detection",
+    description: "Automatically identifies and labels all doors and windows, including their dimensions and types.",
     enabled: false,
-    icon: "⭕"
+    icon: "🚪",
+    progress: 0,
+    details: [
+      "Entry doors and emergency exits",
+      "Window types and sizes",
+      "Opening directions"
+    ]
   },
   {
     id: "room-detection",
     title: "Room Detection",
-    description: "Detects and identifies rooms in the space.",
+    description: "Advanced room recognition with automatic labeling and area calculations.",
     enabled: false,
-    icon: "⚪"
+    icon: "🏠",
+    progress: 0,
+    details: [
+      "Room type identification",
+      "Area measurements",
+      "Space optimization"
+    ]
   },
   {
-    id: "doors-windows",
-    title: "Doors and Windows Detection",
-    description: "Identifies doors and windows in the area.",
+    id: "walls-detection",
+    title: "Walls Detection",
+    description: "Precise wall detection with thickness measurement and material analysis.",
     enabled: false,
-    icon: "🚪"
-  },
-  {
-    id: "zones",
-    title: "Inclusive and Exclusive Zones Detection",
-    description: "Detects accessible and restricted zones.",
-    enabled: false,
-    icon: "↗️"
-  },
-  {
-    id: "walls",
-    title: "Internal and External Walls Detection",
-    description: "Identifies internal and external walls.",
-    enabled: false,
-    icon: "⭕"
+    icon: "🧱",
+    progress: 0,
+    details: [
+      "Wall thickness",
+      "Material type",
+      "Load-bearing analysis"
+    ]
   },
   {
     id: "fire-alarm",
     title: "Fire Alarm Detection",
-    description: "Detects and identifies fire alarms in the space.",
+    description: "Comprehensive fire safety system detection and compliance checking.",
     enabled: false,
-    icon: "⚪"
-  },
-  {
-    id: "room-area",
-    title: "Room Area Detection",
-    description: "Detects the room area of the floor.",
-    enabled: false,
-    icon: "↗️"
-  },
-  {
-    id: "walls-area",
-    title: "Walls Area Detection",
-    description: "Detect the walls area of the room.",
-    enabled: false,
-    icon: "⭕"
+    icon: "🚨",
+    progress: 0,
+    details: [
+      "Alarm placement verification",
+      "Coverage analysis",
+      "Emergency route planning"
+    ]
   }
 ];
 
@@ -114,16 +113,17 @@ const doorWindowSection: APISection = {
 
 export default function RightPanel() {
   const { isDarkMode } = useThemeStore();
+  const [expandedOption, setExpandedOption] = useState<string | null>(null);
   
   return (
     <div className={cn(
-      "w-[300px] border-l transition-colors",
+      "w-[300px] border-l transition-colors flex flex-col h-[calc(100vh-48px)]", 
       isDarkMode 
         ? "bg-gradient-to-b from-zinc-900 to-zinc-950 border-orange-900/20" 
         : "bg-gradient-to-b from-zinc-100 to-zinc-200 border-orange-500/20"
     )}>
       <div className={cn(
-        "p-3 border-b transition-colors",
+        "p-3 border-b transition-colors flex-shrink-0", 
         isDarkMode 
           ? "border-orange-500/10 bg-black/20"
           : "border-orange-500/10 bg-zinc-50/20"
@@ -148,111 +148,90 @@ export default function RightPanel() {
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Detection Options */}
-        <div className="space-y-3">
-          {/* Object Detection */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⚪</span>
-                <span className={cn(
-                  "text-sm font-medium",
-                  isDarkMode ? "text-orange-100" : "text-zinc-900"
+      <div className="flex-grow overflow-y-auto"> 
+        <div className="p-4 space-y-4">
+          {/* Detection Options */}
+          <div className="space-y-3">
+            {apiOptions.map((option) => (
+              <div 
+                key={option.id} 
+                className={cn(
+                  "space-y-2 rounded-lg p-3 transition-colors",
+                  expandedOption === option.id
+                    ? isDarkMode 
+                      ? "bg-orange-500/10" 
+                      : "bg-orange-500/10"
+                    : "hover:bg-orange-500/5"
+                )}
+                onClick={() => setExpandedOption(expandedOption === option.id ? null : option.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{option.icon}</span>
+                    <span className={cn(
+                      "text-sm font-medium",
+                      isDarkMode ? "text-orange-100" : "text-zinc-900"
+                    )}>
+                      {option.title}
+                    </span>
+                  </div>
+                  <Switch 
+                    checked={option.enabled}
+                    className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"}
+                    onClick={(e) => e.stopPropagation()} 
+                  />
+                </div>
+                <p className={cn(
+                  "text-xs",
+                  isDarkMode ? "text-orange-100/70" : "text-zinc-600"
                 )}>
-                  Object Detection
-                </span>
+                  {option.description}
+                </p>
+                
+                {/* Expanded Details */}
+                {expandedOption === option.id && (
+                  <div className="mt-3 space-y-2 pl-7">
+                    {option.details.map((detail, index) => (
+                      <div 
+                        key={index}
+                        className={cn(
+                          "text-xs flex items-center gap-2",
+                          isDarkMode ? "text-orange-100/60" : "text-zinc-600"
+                        )}
+                      >
+                        <div className="h-1 w-1 rounded-full bg-current" />
+                        {detail}
+                      </div>
+                    ))}
+                    
+                    {/* Progress Bar */}
+                    {option.enabled && (
+                      <div className="mt-3">
+                        <div className="h-1 bg-orange-200/20 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-orange-500 rounded-full transition-all duration-1000"
+                            style={{ width: `${option.progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <Switch className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"} />
-            </div>
-            <p className={cn(
-              "text-xs pl-7",
-              isDarkMode ? "text-orange-100/70" : "text-zinc-600"
-            )}>
-              Add exclusions and obstructions
-            </p>
-          </div>
-
-          {/* Room Detection */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⬜</span>
-                <span className={cn(
-                  "text-sm font-medium",
-                  isDarkMode ? "text-orange-100" : "text-zinc-900"
-                )}>
-                  Room Detection
-                </span>
-              </div>
-              <Switch className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"} />
-            </div>
-            <p className={cn(
-              "text-xs pl-7",
-              isDarkMode ? "text-orange-100/70" : "text-zinc-600"
-            )}>
-              Detects and identifies rooms in the space.
-            </p>
-          </div>
-
-          {/* Doors and Windows */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🚪</span>
-                <span className={cn(
-                  "text-sm font-medium",
-                  isDarkMode ? "text-orange-100" : "text-zinc-900"
-                )}>
-                  Doors and Windows
-                </span>
-              </div>
-              <Switch className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"} />
-            </div>
-            <p className={cn(
-              "text-xs pl-7",
-              isDarkMode ? "text-orange-100/70" : "text-zinc-600"
-            )}>
-              Identifies doors and windows in the area.
-            </p>
-          </div>
-
-          {/* Zones Detection */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">↗️</span>
-                <span className={cn(
-                  "text-sm font-medium",
-                  isDarkMode ? "text-orange-100" : "text-zinc-900"
-                )}>
-                  Inclusive and Exclusive Zones
-                </span>
-              </div>
-              <Switch className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"} />
-            </div>
-            <p className={cn(
-              "text-xs pl-7",
-              isDarkMode ? "text-orange-100/70" : "text-zinc-600"
-            )}>
-              Detects accessible and restricted zones.
-            </p>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className={cn(
-        "p-4 border-t transition-colors",
-        isDarkMode 
-          ? "border-orange-500/10 bg-black/20"
-          : "border-orange-500/10 bg-zinc-50/20"
-      )}>
-        <button className={cn(
-          "w-full py-2 rounded-lg text-sm font-medium transition-colors",
-          isDarkMode
-            ? "bg-orange-500 hover:bg-orange-600 text-white"
-            : "bg-orange-500 hover:bg-orange-600 text-white"
-        )}>
+      {/* Next Button - Fixed at bottom */}
+      <div className="p-4 border-t flex-shrink-0"> 
+        <button
+          className={cn(
+            "w-full py-2 px-4 rounded-lg font-medium text-white transition-colors",
+            "bg-orange-500 hover:bg-orange-600",
+            "disabled:opacity-50 disabled:cursor-not-allowed"
+          )}
+        >
           Next
         </button>
       </div>
