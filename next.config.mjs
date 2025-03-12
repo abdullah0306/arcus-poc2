@@ -34,11 +34,11 @@ const nextConfig = {
 
     return config;
   },
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
+  experimental: {
+    serverComponentsExternalPackages: ["jsdom"],
+    serverActions: {
+      bodySizeLimit: '30mb',
     },
-    responseLimit: '10mb',
   },
 };
 

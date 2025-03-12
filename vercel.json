@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "functions": {
+    "api/canvas-projects": {
+      "maxDuration": 60
+    },
+    "api/canvas-projects/[projectId]": {
+      "maxDuration": 60
+    }
+  },
+  "routes": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1",
+      "headers": {
+        "x-vercel-max-body-size": "30mb"
+      }
+    }
+  ]
+}
