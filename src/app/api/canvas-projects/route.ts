@@ -4,7 +4,7 @@ import { canvasProjects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-export const maxDuration = 300; 
+export const maxDuration = 60; // Set to 60 seconds for Vercel hobby plan
 export const dynamic = 'force-dynamic';
 
 interface CanvasData {
@@ -13,6 +13,7 @@ interface CanvasData {
   currentPage: number;
   totalChunks?: number;
   chunkIndex?: number;
+  projectId?: string;
 }
 
 export async function POST(req: Request) {
@@ -37,6 +38,10 @@ export async function POST(req: Request) {
       currentPage: 0,
     };
 
+    // Implement chunking for large files
+    // If totalChunks is provided, we're handling a large file in chunks
+    const isChunkedUpload = canvasData.totalChunks && canvasData.chunkIndex !== undefined && canvasData.projectId;
+    
     // Merge with provided data
     const finalCanvasData: CanvasData = {
       ...defaultCanvasData,
@@ -49,16 +54,48 @@ export async function POST(req: Request) {
     };
 
     // Create project with validated data
-    const canvasProject = await db
-      .insert(canvasProjects)
-      .values({
-        name,
-        userId: session.user.id,
-        canvasData: finalCanvasData,
-      })
-      .returning();
+    let canvasProject;
+    if (isChunkedUpload) {
+      // If this is a chunked upload, we need to find the existing project and update it
+      const existingProjects = await db
+        .select()
+        .from(canvasProjects)
+        .where(eq(canvasProjects.id, canvasData.projectId));
 
-    return NextResponse.json(canvasProject[0]);
+      if (!existingProjects || existingProjects.length === 0) {
+        return new NextResponse("Project not found", { status: 404 });
+      }
+
+      const existingProject = existingProjects[0];
+      
+      // Update the project with the new chunk
+      await db
+        .update(canvasProjects)
+        .set({ canvasData: finalCanvasData })
+        .where(eq(canvasProjects.id, canvasData.projectId));
+      
+      // Fetch the updated project
+      const updatedProjects = await db
+        .select()
+        .from(canvasProjects)
+        .where(eq(canvasProjects.id, canvasData.projectId));
+      
+      canvasProject = updatedProjects[0];
+    } else {
+      // If this is not a chunked upload, we can create a new project
+      const insertedProjects = await db
+        .insert(canvasProjects)
+        .values({
+          name,
+          userId: session.user.id,
+          canvasData: finalCanvasData,
+        })
+        .returning();
+
+      canvasProject = insertedProjects[0];
+    }
+
+    return NextResponse.json(canvasProject);
   } catch (error) {
     console.error("[CANVAS_PROJECTS_POST]", error);
     return new NextResponse("Internal Error", { status: 500 });

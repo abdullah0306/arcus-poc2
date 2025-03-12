@@ -4,6 +4,9 @@ import { canvasProjects } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
+export const maxDuration = 60; // Set to 60 seconds for Vercel hobby plan
+export const dynamic = 'force-dynamic';
+
 interface CanvasData {
   version: string;
   pages: string[];
