@@ -4,8 +4,8 @@ import { canvasProjects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-export const maxDuration = 60; // Set max duration to 60 seconds (Vercel hobby plan limit)
-export const dynamic = 'force-dynamic'; // Disable static optimization
+export const maxDuration = 300; 
+export const dynamic = 'force-dynamic';
 
 interface CanvasData {
   version: string;
