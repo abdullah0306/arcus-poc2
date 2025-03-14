@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Crown, Home, MessageCircleQuestion, FolderKanban } from "lucide-react";
+import { CreditCard, Crown, Home, MessageCircleQuestion, FolderKanban, LayoutDashboard } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { usePaywall } from "@/features/subscriptions/hooks/use-paywall";
@@ -50,7 +50,8 @@ export const SidebarRoutes = () => {
         </>
       )}
       <ul className="flex flex-col gap-y-1 px-3">
-        <SidebarItem href="/" icon={Home} label="Home" isActive={pathname === "/"} />
+        {/* <SidebarItem href="/" icon={Home} label="Home" isActive={pathname === "/"} /> */}
+        <SidebarItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isActive={pathname === "/dashboard"} />
         <SidebarItem href="/projects" icon={FolderKanban} label="Projects" isActive={pathname === "/projects"} />
       </ul>
       <div className="px-3">
