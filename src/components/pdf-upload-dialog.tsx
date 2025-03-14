@@ -57,8 +57,8 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
         viewport: viewport,
       }).promise;
 
-      // Convert to JPEG with reduced quality for smaller file size
-      return canvas.toDataURL("image/jpeg", 0.7);
+      // Convert to JPEG with balanced quality (0.85) for good quality while keeping size reasonable
+      return canvas.toDataURL("image/jpeg", 0.85);
     } finally {
       canvas.width = 0;
       canvas.height = 0;
@@ -66,11 +66,13 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
   };
 
   const uploadInChunks = async (pages: string[], fileName: string) => {
-    const CHUNK_SIZE = 1; // Process one page at a time to stay well within limits
+    const CHUNK_SIZE = 1; // Process one page at a time
     const totalChunks = Math.ceil(pages.length / CHUNK_SIZE);
     let projectId: string | undefined;
     let retryCount = 0;
     const MAX_RETRIES = 3;
+
+    toast.loading("Starting upload...", { id: "upload-progress" });
 
     for (let i = 0; i < pages.length; i += CHUNK_SIZE) {
       const chunk = pages.slice(i, i + CHUNK_SIZE);
@@ -97,7 +99,8 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
           });
 
           if (!response.ok) {
-            throw new Error(`Failed to upload chunk ${chunkIndex + 1}`);
+            const errorText = await response.text();
+            throw new Error(errorText || `Failed to upload page ${chunkIndex + 1}`);
           }
 
           const result = await response.json();
@@ -105,6 +108,7 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
           // Save the project ID from the first chunk
           if (chunkIndex === 0) {
             projectId = result.id;
+            toast.loading("Processing PDF pages...", { id: "upload-progress" });
           }
 
           // Update progress
@@ -113,13 +117,21 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
           
           // Reset retry count on success
           retryCount = 0;
-          break; // Exit retry loop on success
+          break;
         } catch (error) {
           retryCount++;
+          console.error(`Error uploading chunk ${chunkIndex}, attempt ${retryCount}:`, error);
+          
           if (retryCount === MAX_RETRIES) {
-            console.error(`Failed to upload chunk ${chunkIndex} after ${MAX_RETRIES} attempts:`, error);
+            toast.dismiss("upload-progress");
             throw new Error(`Failed to upload page ${chunkIndex + 1}. Please try again.`);
           }
+          
+          // Show retry message
+          toast.loading(`Retrying page ${chunkIndex + 1}... (Attempt ${retryCount}/${MAX_RETRIES})`, {
+            id: "upload-progress"
+          });
+          
           // Wait before retrying (exponential backoff)
           await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
         }
@@ -135,7 +147,7 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
 
     try {
       setIsLoading(true);
-      toast.loading("Processing PDF...", { id: "upload-progress" });
+      toast.loading("Reading PDF file...", { id: "upload-progress" });
 
       const fileName = file.name.replace(/\.pdf$/i, '');
 
@@ -147,12 +159,17 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
       const pdf = await getDocument({ data: arrayBuffer }).promise;
       
       try {
-        const pagePromises = [];
+        toast.loading("Converting PDF pages...", { id: "upload-progress" });
+        
+        // Process pages sequentially to avoid memory issues
+        const pageImages = [];
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          pagePromises.push(processPage(page));
+          const pageImage = await processPage(page);
+          pageImages.push(pageImage);
+          
+          toast.loading(`Converting page ${i} of ${pdf.numPages}...`, { id: "upload-progress" });
         }
-        const pageImages = await Promise.all(pagePromises);
         
         // Upload pages in chunks
         const projectId = await uploadInChunks(pageImages, fileName);
@@ -163,7 +180,7 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
 
         setIsOpen(false);
         toast.dismiss("upload-progress");
-        toast.success("PDF processed successfully");
+        toast.success(`Successfully processed ${pageImages.length} pages`);
         
         // Navigate to canvas
         router.push(`/projects/${projectId}/canvas`);
