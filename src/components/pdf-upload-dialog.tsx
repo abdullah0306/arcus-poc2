@@ -25,6 +25,10 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
   const [isLoading, setIsLoading] = useState(false);
   const [isWorkerReady, setIsWorkerReady] = useState(false);
 
+  // Constants for chunking
+  const CHUNK_SIZE = 5; // Number of pages per chunk
+  const MAX_PARALLEL_UPLOADS = 3; // Number of concurrent chunk uploads
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -67,6 +71,43 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
     }
   };
 
+  const uploadProjectChunk = async (
+    pages: string[],
+    fileName: string,
+    chunkIndex: number,
+    totalChunks: number,
+    projectId?: string
+  ): Promise<any> => {
+    try {
+      const response = await fetch("/api/canvas-projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: fileName,
+          canvasData: {
+            version: "1.0",
+            pages,
+            currentPage: 0,
+            totalChunks,
+            chunkIndex,
+            projectId
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to upload chunk ${chunkIndex + 1}/${totalChunks}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error(`Error uploading chunk ${chunkIndex}:`, error);
+      throw error;
+    }
+  };
+
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !isWorkerReady) return;
@@ -79,27 +120,62 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
       const fileName = file.name.replace(/\.pdf$/i, '');
 
       // Validate file size
-      if (file.size > 50 * 1024 * 1024) { // 50MB limit
-        throw new Error("File size too large. Please upload a PDF smaller than 50MB.");
+      if (file.size > 100 * 1024 * 1024) { // 100MB limit
+        throw new Error("File size too large. Please upload a PDF smaller than 100MB.");
       }
 
       // Read the PDF file
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await getDocument({ data: arrayBuffer }).promise;
       
-      // Process all pages
       try {
-        const pagePromises = [];
+        // Process all pages first
+        const allPages: string[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          pagePromises.push(processPage(page));
+          const pageImage = await processPage(page);
+          allPages.push(pageImage);
+          
+          // Update progress
+          const progress = Math.round((i / pdf.numPages) * 100);
+          toast.loading(`Processing page ${i}/${pdf.numPages} (${progress}%)`);
         }
-        const pageImages = await Promise.all(pagePromises);
+
+        // Calculate chunks
+        const chunks: string[][] = [];
+        for (let i = 0; i < allPages.length; i += CHUNK_SIZE) {
+          chunks.push(allPages.slice(i, i + CHUNK_SIZE));
+        }
+
+        let projectId: string | undefined;
         
-        onPDFProcessed(pageImages, fileName);
+        // Upload chunks with controlled concurrency
+        for (let i = 0; i < chunks.length; i += MAX_PARALLEL_UPLOADS) {
+          const chunkPromises = chunks.slice(i, i + MAX_PARALLEL_UPLOADS).map((chunk, index) => {
+            const actualIndex = i + index;
+            return uploadProjectChunk(chunk, fileName, actualIndex, chunks.length, projectId);
+          });
+
+          const results = await Promise.all(chunkPromises);
+          
+          // Store the project ID from the first chunk
+          if (i === 0) {
+            projectId = results[0].id;
+          }
+
+          // Update upload progress
+          const progress = Math.round(((i + MAX_PARALLEL_UPLOADS) / chunks.length) * 100);
+          toast.loading(`Uploading chunks... ${Math.min(progress, 100)}%`);
+        }
+
         setIsOpen(false);
         toast.dismiss();
         toast.success("PDF processed successfully");
+        
+        // Call the callback with the project ID for navigation
+        if (projectId) {
+          onPDFProcessed([], fileName); // We pass empty pages since they're already uploaded
+        }
       } catch (pageError) {
         console.error("Error processing PDF pages:", pageError);
         throw new Error("Failed to process PDF pages. Please try a different PDF.");
@@ -128,7 +204,7 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>
             Upload your project in PDF format. We&apos;ll convert it to an editable canvas project.
-            Maximum file size: 50MB.
+            Maximum file size: 100MB.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
