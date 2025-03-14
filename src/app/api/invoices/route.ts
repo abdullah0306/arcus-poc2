@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { clientName, clientEmail, status } = body;
 
-    // Validate required fields
+    // Validate required fields..
     if (!clientName || !clientEmail) {
       return new NextResponse("Missing required fields", { status: 400 });
     }
