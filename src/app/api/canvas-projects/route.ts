@@ -67,11 +67,24 @@ export async function POST(req: Request) {
       }
 
       const existingProject = existingProjects[0];
+      const existingCanvasData = existingProject.canvasData as CanvasData;
       
-      // Update the project with the new chunk
+      // Merge the new pages with existing pages
+      const mergedCanvasData: CanvasData = {
+        ...existingCanvasData,
+        pages: [
+          ...existingCanvasData.pages,
+          ...finalCanvasData.pages
+        ],
+        // Keep track of upload progress
+        totalChunks: finalCanvasData.totalChunks,
+        chunkIndex: finalCanvasData.chunkIndex
+      };
+      
+      // Update the project with merged data
       await db
         .update(canvasProjects)
-        .set({ canvasData: finalCanvasData })
+        .set({ canvasData: mergedCanvasData })
         .where(eq(canvasProjects.id, canvasData.projectId));
       
       // Fetch the updated project
