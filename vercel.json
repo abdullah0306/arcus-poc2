@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "functions": {
+    "api/canvas-projects/**": {
+      "runtime": "edge",
+      "memory": 3008,
+      "maxDuration": 300
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/canvas-projects(.*)",
+      "dest": "/api/canvas-projects$1",
+      "continue": true
+    }
+  ]
+}

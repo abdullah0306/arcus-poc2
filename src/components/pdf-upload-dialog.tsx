@@ -14,16 +14,17 @@ import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { getDocument, GlobalWorkerOptions, version } from "pdfjs-dist";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 interface PDFUploadDialogProps {
-  onPDFProcessed: (pages: string[], fileName: string) => void;
   className?: string;
 }
 
-export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogProps) {
+export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isWorkerReady, setIsWorkerReady] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -47,24 +48,72 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d")!;
 
-    // Set canvas dimensions
     canvas.width = viewport.width;
     canvas.height = viewport.height;
 
     try {
-      // Render the page
       await page.render({
         canvasContext: context,
         viewport: viewport,
       }).promise;
 
-      // Convert to high quality JPEG format
-      return canvas.toDataURL("image/jpeg", 1.0);
+      // Convert to JPEG with reduced quality for smaller file size
+      return canvas.toDataURL("image/jpeg", 0.7);
     } finally {
-      // Clean up
       canvas.width = 0;
       canvas.height = 0;
     }
+  };
+
+  const uploadInChunks = async (pages: string[], fileName: string) => {
+    const CHUNK_SIZE = 2; // Number of pages per chunk
+    const totalChunks = Math.ceil(pages.length / CHUNK_SIZE);
+    let projectId: string | undefined;
+
+    for (let i = 0; i < pages.length; i += CHUNK_SIZE) {
+      const chunk = pages.slice(i, i + CHUNK_SIZE);
+      const chunkIndex = Math.floor(i / CHUNK_SIZE);
+      
+      try {
+        const response = await fetch("/api/canvas-projects", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: fileName,
+            canvasData: {
+              version: "1.0",
+              pages: chunk,
+              currentPage: 0,
+              totalChunks,
+              chunkIndex,
+              projectId, // Will be undefined for first chunk
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to upload chunk ${chunkIndex + 1}`);
+        }
+
+        const result = await response.json();
+        
+        // Save the project ID from the first chunk
+        if (chunkIndex === 0) {
+          projectId = result.id;
+        }
+
+        // Update progress
+        const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+        toast.loading(`Processing: ${progress}%`, { id: "upload-progress" });
+      } catch (error) {
+        console.error(`Error uploading chunk ${chunkIndex}:`, error);
+        throw error;
+      }
+    }
+
+    return projectId;
   };
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,21 +122,17 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
 
     try {
       setIsLoading(true);
-      toast.loading("Processing PDF...");
+      toast.loading("Processing PDF...", { id: "upload-progress" });
 
-      // Get file name without .pdf extension
       const fileName = file.name.replace(/\.pdf$/i, '');
 
-      // Validate file size
-      if (file.size > 50 * 1024 * 1024) { // 50MB limit
+      if (file.size > 50 * 1024 * 1024) {
         throw new Error("File size too large. Please upload a PDF smaller than 50MB.");
       }
 
-      // Read the PDF file
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await getDocument({ data: arrayBuffer }).promise;
       
-      // Process all pages
       try {
         const pagePromises = [];
         for (let i = 1; i <= pdf.numPages; i++) {
@@ -96,22 +141,31 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
         }
         const pageImages = await Promise.all(pagePromises);
         
-        onPDFProcessed(pageImages, fileName);
+        // Upload pages in chunks
+        const projectId = await uploadInChunks(pageImages, fileName);
+        
+        if (!projectId) {
+          throw new Error("Failed to create project");
+        }
+
         setIsOpen(false);
-        toast.dismiss();
+        toast.dismiss("upload-progress");
         toast.success("PDF processed successfully");
+        
+        // Navigate to canvas
+        router.push(`/projects/${projectId}/canvas`);
       } catch (pageError) {
         console.error("Error processing PDF pages:", pageError);
         throw new Error("Failed to process PDF pages. Please try a different PDF.");
       }
     } catch (error: any) {
       console.error("Error processing PDF:", error);
-      toast.dismiss();
+      toast.dismiss("upload-progress");
       toast.error(error.message || "Failed to process PDF");
     } finally {
       setIsLoading(false);
     }
-  }, [isWorkerReady, onPDFProcessed]);
+  }, [isWorkerReady, router]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
