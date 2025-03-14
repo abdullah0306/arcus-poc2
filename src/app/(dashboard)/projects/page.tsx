@@ -99,7 +99,7 @@ export default function ProjectsPage() {
       toast.dismiss();
       toast.success("Project created successfully");
       
-      // Navigate to the canvas page
+      // Navigate to Arcus AI page
       router.push(`/projects/${project.id}/canvas`);
     } catch (error) {
       console.error("Error creating project:", error);

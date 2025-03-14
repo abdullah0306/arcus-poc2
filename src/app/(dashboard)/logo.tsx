@@ -12,11 +12,14 @@ const font = Space_Grotesk({
 export const Logo = () => {
   return (
     <Link href="/">
-      <div className="flex items-center gap-x-2 hover:opacity-75 transition h-[68px] px-4">
-        <div className="size-8 relative">
-          <Image src="/logo.svg" alt="The Canvas" fill />
-        </div>
-        <h1 className={cn(font.className, "text-xl font-bold")}>The Canvas</h1>
+      <div className="flex w-full hover:opacity-75 transition h-[68px] px-4">
+        <Image 
+          src="https://sovanza.com/assert/asad/asad/Logo.svg" 
+          alt="Arcus AI Logo" 
+          width={150} 
+          height={50} 
+          className="object-contain"
+        />
       </div>
     </Link>
   );

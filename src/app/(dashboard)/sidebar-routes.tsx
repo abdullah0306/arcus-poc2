@@ -64,11 +64,11 @@ export const SidebarRoutes = () => {
             <Button
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending}
-              className="w-full rounded-xl border-none hover:bg-white hover:opacity-75 transition"
+              className="w-full rounded-xl border-none hover:bg-white hover:opacity-75 transition text-black"
               variant="outline"
               size="lg"
             >
-              <Crown className="mr-2 size-4 fill-yellow-500 text-yellow-500" />
+              <Crown className="mr-2 size-4 fill-black text-black" />
               Upgrade to Pro
             </Button>
           </div>

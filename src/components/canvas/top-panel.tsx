@@ -35,7 +35,7 @@ export default function TopPanel() {
       fabric.Image.fromURL(
         project.canvasData.pages[newPage],
         (img) => {
-          // Calculate scale to fit the canvas while maintaining aspect ratio
+          // Calculate scale to fit Arcus AI while maintaining aspect ratio
           const canvasWidth = canvas.getWidth();
           const canvasHeight = canvas.getHeight();
           const scale = Math.min(

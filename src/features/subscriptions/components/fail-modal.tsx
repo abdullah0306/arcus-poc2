@@ -29,7 +29,7 @@ export const FailModal = () => {
       <DialogContent>
         <DialogHeader className="flex items-center space-y-4">
           <Image
-            src="/logo.svg"
+            src="https://sovanza.com/assert/asad/asad/Logo.svg"
             alt="Logo"
             width={36}
             height={36}

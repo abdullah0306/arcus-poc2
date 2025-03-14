@@ -126,7 +126,7 @@ export default function CanvasPage() {
       (img) => {
         setLoadingProgress(60);
         
-        // Calculate scale to fit the canvas while maintaining aspect ratio
+        // Calculate scale to fit Arcus AI while maintaining aspect ratio
         const canvasWidth = canvas.getWidth();
         const canvasHeight = canvas.getHeight();
         const scale = Math.min(
@@ -255,7 +255,7 @@ export default function CanvasPage() {
     const handleWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
       
-      // Only handle zoom if the event is within the canvas container
+      // Only handle zoom if the event is within Arcus AI container
       const container = containerRef.current;
       if (!container?.contains(e.target as Node)) return;
       
@@ -283,7 +283,7 @@ export default function CanvasPage() {
       setZoom(newZoom);
     };
 
-    // Attach wheel event to the canvas container instead of canvas
+    // Attach wheel event to Arcus AI container instead of canvas
     const container = containerRef.current;
     if (container) {
       container.addEventListener('wheel', handleWheel, { passive: false });

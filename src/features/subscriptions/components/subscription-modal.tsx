@@ -26,10 +26,10 @@ export const SubscriptionModal = () => {
       <DialogContent>
         <DialogHeader className="flex items-center space-y-4">
           <Image
-            src="/logo.svg"
+            src="https://sovanza.com/assert/asad/asad/Logo.svg"
             alt="Logo"
-            width={36}
-            height={36}
+            width={150}
+            height={150}
           />
           <DialogTitle className="text-center">
             Upgrade to a paid plan

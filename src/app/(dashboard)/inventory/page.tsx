@@ -5,7 +5,7 @@ import { Package, Import } from "lucide-react";
 
 export default function InventoryPage() {
   return (
-    <div className="flex-1 p-8 pt-6">
+    <div className="bg-muted h-full flex-1 p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Inventory</h1>

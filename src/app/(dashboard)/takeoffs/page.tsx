@@ -59,7 +59,7 @@ export default function TakeoffsPage() {
   };
 
   return (
-    <div className="flex-1 p-8 pt-6">
+    <div className="bg-muted h-full flex-1 p-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Takeoffs</h1>
         <div className="flex items-center gap-x-2">
