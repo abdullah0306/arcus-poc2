@@ -139,3 +139,40 @@ export async function GET(req: Request) {
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const projectId = searchParams.get("projectId");
+
+    if (!projectId) {
+      return new NextResponse("Project ID is required", { status: 400 });
+    }
+
+    // Verify project ownership
+    const project = await db
+      .select()
+      .from(canvasProjects)
+      .where(eq(canvasProjects.id, projectId))
+      .limit(1);
+
+    if (!project.length || project[0].userId !== session.user.id) {
+      return new NextResponse("Project not found", { status: 404 });
+    }
+
+    // Delete the project
+    await db
+      .delete(canvasProjects)
+      .where(eq(canvasProjects.id, projectId));
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error("[CANVAS_PROJECTS_DELETE]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}
