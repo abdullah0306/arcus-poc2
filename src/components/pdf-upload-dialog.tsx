@@ -17,9 +17,10 @@ import { toast } from "sonner";
 
 interface PDFUploadDialogProps {
   onPDFProcessed: (pages: string[], fileName: string) => void;
+  className?: string;
 }
 
-export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
+export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isWorkerReady, setIsWorkerReady] = useState(false);
@@ -115,7 +116,12 @@ export function PDFUploadDialog({ onPDFProcessed }: PDFUploadDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline">Upload PDF</Button>
+        <Button 
+          variant="outline"
+          className={className}
+        >
+          Upload PDF
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
