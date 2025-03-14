@@ -4,8 +4,18 @@ import { canvasProjects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-export const maxDuration = 60; // Set to 60 seconds for Vercel hobby plan
+export const maxDuration = 300; // Increased to 300 seconds for large file processing
 export const dynamic = 'force-dynamic';
+
+// Configure body size limit
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+    responseLimit: '50mb',
+  },
+};
 
 interface CanvasData {
   version: string;
@@ -53,6 +63,12 @@ export async function POST(req: Request) {
       chunkIndex: canvasData.chunkIndex,
     };
 
+    // Validate payload size
+    const payloadSize = JSON.stringify(finalCanvasData).length;
+    if (payloadSize > 50 * 1024 * 1024) { // 50MB limit
+      return new NextResponse("Payload too large", { status: 413 });
+    }
+
     // Create project with validated data
     let canvasProject;
     if (isChunkedUpload) {
@@ -67,11 +83,23 @@ export async function POST(req: Request) {
       }
 
       const existingProject = existingProjects[0];
+      const existingPages = existingProject.canvasData?.pages || [];
       
-      // Update the project with the new chunk
+      // Update the project with the new chunk, merging pages
+      const updatedPages = [...existingPages];
+      canvasData.pages.forEach((page: string, idx: number) => {
+        const pageIndex = (canvasData.chunkIndex || 0) * 2 + idx; // Using chunk size of 2
+        updatedPages[pageIndex] = page;
+      });
+
+      const updatedCanvasData = {
+        ...finalCanvasData,
+        pages: updatedPages,
+      };
+      
       await db
         .update(canvasProjects)
-        .set({ canvasData: finalCanvasData })
+        .set({ canvasData: updatedCanvasData })
         .where(eq(canvasProjects.id, canvasData.projectId));
       
       // Fetch the updated project

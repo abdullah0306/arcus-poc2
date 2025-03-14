@@ -26,8 +26,9 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
   const [isWorkerReady, setIsWorkerReady] = useState(false);
 
   // Constants for chunking
-  const CHUNK_SIZE = 5; // Number of pages per chunk
-  const MAX_PARALLEL_UPLOADS = 3; // Number of concurrent chunk uploads
+  const CHUNK_SIZE = 2; 
+  const MAX_PARALLEL_UPLOADS = 2;
+  const MAX_IMAGE_DIMENSION = 2000;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -48,22 +49,29 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
 
   const processPage = async (page: any, scale: number = 1.5): Promise<string> => {
     const viewport = page.getViewport({ scale });
+    
+    // Calculate scale to fit within MAX_IMAGE_DIMENSION
+    const maxDimension = Math.max(viewport.width, viewport.height);
+    const adjustedScale = maxDimension > MAX_IMAGE_DIMENSION ? 
+      (MAX_IMAGE_DIMENSION / maxDimension) * scale : scale;
+    
+    const adjustedViewport = page.getViewport({ scale: adjustedScale });
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d")!;
 
     // Set canvas dimensions
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
+    canvas.width = adjustedViewport.width;
+    canvas.height = adjustedViewport.height;
 
     try {
       // Render the page
       await page.render({
         canvasContext: context,
-        viewport: viewport,
+        viewport: adjustedViewport,
       }).promise;
 
-      // Convert to high quality JPEG format
-      return canvas.toDataURL("image/jpeg", 1.0);
+      // Convert to medium quality JPEG to reduce size
+      return canvas.toDataURL("image/jpeg", 0.7);
     } finally {
       // Clean up
       canvas.width = 0;
@@ -79,29 +87,47 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
     projectId?: string
   ): Promise<any> => {
     try {
-      const response = await fetch("/api/canvas-projects", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: fileName,
-          canvasData: {
-            version: "1.0",
-            pages,
-            currentPage: 0,
-            totalChunks,
-            chunkIndex,
-            projectId
-          }
-        }),
-      });
+      const retries = 3;
+      let lastError;
 
-      if (!response.ok) {
-        throw new Error(`Failed to upload chunk ${chunkIndex + 1}/${totalChunks}`);
+      for (let i = 0; i < retries; i++) {
+        try {
+          const response = await fetch("/api/canvas-projects", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: fileName,
+              canvasData: {
+                version: "1.0",
+                pages,
+                currentPage: 0,
+                totalChunks,
+                chunkIndex,
+                projectId
+              }
+            }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to upload chunk ${chunkIndex + 1}/${totalChunks}: ${errorText}`);
+          }
+
+          return await response.json();
+        } catch (error) {
+          lastError = error;
+          if (i < retries - 1) {
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+            continue;
+          }
+          throw error;
+        }
       }
 
-      return await response.json();
+      throw lastError;
     } catch (error) {
       console.error(`Error uploading chunk ${chunkIndex}:`, error);
       throw error;
@@ -148,6 +174,7 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
         }
 
         let projectId: string | undefined;
+        let failedChunks = 0;
         
         // Upload chunks with controlled concurrency
         for (let i = 0; i < chunks.length; i += MAX_PARALLEL_UPLOADS) {
@@ -156,11 +183,20 @@ export function PDFUploadDialog({ onPDFProcessed, className }: PDFUploadDialogPr
             return uploadProjectChunk(chunk, fileName, actualIndex, chunks.length, projectId);
           });
 
-          const results = await Promise.all(chunkPromises);
-          
-          // Store the project ID from the first chunk
-          if (i === 0) {
-            projectId = results[0].id;
+          try {
+            const results = await Promise.all(chunkPromises);
+            
+            // Store the project ID from the first chunk
+            if (i === 0) {
+              projectId = results[0].id;
+            }
+          } catch (error) {
+            failedChunks++;
+            if (failedChunks > 3) {
+              throw new Error("Too many upload failures. Please try again.");
+            }
+            // Wait before continuing
+            await new Promise(resolve => setTimeout(resolve, 2000));
           }
 
           // Update upload progress
