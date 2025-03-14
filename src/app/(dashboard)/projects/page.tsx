@@ -9,6 +9,18 @@ import { format } from "date-fns";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
 import { PDFUploadDialog } from "@/components/pdf-upload-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CanvasProject {
   id: string;
@@ -21,6 +33,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<CanvasProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
 
   const loadProjects = async () => {
     try {
@@ -35,6 +48,27 @@ export default function ProjectsPage() {
       toast.error("Failed to load projects");
     } finally {
       setIsLoadingProjects(false);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      const response = await fetch(`/api/canvas-projects?projectId=${projectId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete project");
+      }
+
+      // Remove project from state
+      setProjects((prev) => prev.filter((p) => p.id !== projectId));
+      toast.success("Project deleted successfully");
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      toast.error("Failed to delete project");
+    } finally {
+      setProjectToDelete(null);
     }
   };
 
@@ -145,24 +179,60 @@ export default function ProjectsPage() {
           projects.map((project) => (
             <Card 
               key={project.id}
-              className="cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-100 group bg-white"
-              onClick={() => router.push(`/projects/${project.id}/canvas`)}
+              className="cursor-pointer hover:shadow-lg transition-all duration-200 border border-gray-100 group bg-white relative"
             >
-              <CardHeader className="p-4 border-b border-gray-100">
-                <CardTitle className="text-sm truncate group-hover:text-orange-500 transition-colors">
-                  {project.name}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-3 text-xs text-gray-500 flex items-center">
-                <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {format(new Date(project.createdAt), "MMM d, yyyy")}
-              </CardContent>
+              <div 
+                className="absolute top-2 right-2 z-10"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setProjectToDelete(project.id);
+                }}
+              >
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              </div>
+              <div onClick={() => router.push(`/projects/${project.id}/canvas`)}>
+                <CardHeader className="p-4 border-b border-gray-100">
+                  <CardTitle className="text-sm truncate group-hover:text-orange-500 transition-colors">
+                    {project.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-3 text-xs text-gray-500 flex items-center">
+                  <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {format(new Date(project.createdAt), "MMM d, yyyy")}
+                </CardContent>
+              </div>
             </Card>
           ))
         )}
       </div>
+
+      <AlertDialog open={!!projectToDelete} onOpenChange={(open: boolean) => !open && setProjectToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your project.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={() => projectToDelete && handleDeleteProject(projectToDelete)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
