@@ -66,50 +66,63 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
   };
 
   const uploadInChunks = async (pages: string[], fileName: string) => {
-    const CHUNK_SIZE = 2; // Number of pages per chunk
+    const CHUNK_SIZE = 1; // Process one page at a time to stay well within limits
     const totalChunks = Math.ceil(pages.length / CHUNK_SIZE);
     let projectId: string | undefined;
+    let retryCount = 0;
+    const MAX_RETRIES = 3;
 
     for (let i = 0; i < pages.length; i += CHUNK_SIZE) {
       const chunk = pages.slice(i, i + CHUNK_SIZE);
       const chunkIndex = Math.floor(i / CHUNK_SIZE);
       
-      try {
-        const response = await fetch("/api/canvas-projects", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: fileName,
-            canvasData: {
-              version: "1.0",
-              pages: chunk,
-              currentPage: 0,
-              totalChunks,
-              chunkIndex,
-              projectId, // Will be undefined for first chunk
+      while (retryCount < MAX_RETRIES) {
+        try {
+          const response = await fetch("/api/canvas-projects", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
             },
-          }),
-        });
+            body: JSON.stringify({
+              name: fileName,
+              canvasData: {
+                version: "1.0",
+                pages: chunk,
+                currentPage: 0,
+                totalChunks,
+                chunkIndex,
+                projectId,
+              },
+            }),
+          });
 
-        if (!response.ok) {
-          throw new Error(`Failed to upload chunk ${chunkIndex + 1}`);
+          if (!response.ok) {
+            throw new Error(`Failed to upload chunk ${chunkIndex + 1}`);
+          }
+
+          const result = await response.json();
+          
+          // Save the project ID from the first chunk
+          if (chunkIndex === 0) {
+            projectId = result.id;
+          }
+
+          // Update progress
+          const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+          toast.loading(`Processing: ${progress}%`, { id: "upload-progress" });
+          
+          // Reset retry count on success
+          retryCount = 0;
+          break; // Exit retry loop on success
+        } catch (error) {
+          retryCount++;
+          if (retryCount === MAX_RETRIES) {
+            console.error(`Failed to upload chunk ${chunkIndex} after ${MAX_RETRIES} attempts:`, error);
+            throw new Error(`Failed to upload page ${chunkIndex + 1}. Please try again.`);
+          }
+          // Wait before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
         }
-
-        const result = await response.json();
-        
-        // Save the project ID from the first chunk
-        if (chunkIndex === 0) {
-          projectId = result.id;
-        }
-
-        // Update progress
-        const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
-        toast.loading(`Processing: ${progress}%`, { id: "upload-progress" });
-      } catch (error) {
-        console.error(`Error uploading chunk ${chunkIndex}:`, error);
-        throw error;
       }
     }
 
