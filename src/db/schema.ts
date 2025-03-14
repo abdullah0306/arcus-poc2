@@ -8,6 +8,8 @@ import {
   primaryKey,
   integer,
   json,
+  uuid,
+  varchar,
 } from "drizzle-orm/pg-core"
 import type { AdapterAccountType } from "next-auth/adapters"
 
@@ -179,4 +181,15 @@ export const subscriptions = pgTable("subscription", {
   currentPeriodEnd: timestamp("currentPeriodEnd", { mode: "date" }),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull(),
   updatedAt: timestamp("updatedAt", { mode: "date" }).notNull(),
+});
+
+export const takeoffs = pgTable("takeoffs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  quoteNumber: varchar("quote_number", { length: 50 }).notNull(),
+  clientName: varchar("client_name", { length: 255 }).notNull(),
+  clientEmail: varchar("client_email", { length: 255 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("Pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });

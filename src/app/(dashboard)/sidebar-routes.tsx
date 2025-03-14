@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Crown, Home, MessageCircleQuestion, FolderKanban, LayoutDashboard } from "lucide-react";
+import { CreditCard, Crown, Home, MessageCircleQuestion, FolderKanban, LayoutDashboard, Rocket } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { usePaywall } from "@/features/subscriptions/hooks/use-paywall";
@@ -11,6 +11,24 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 import { SidebarItem } from "./sidebar-item";
+
+export const routes = [
+  {
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/dashboard",
+  },
+  {
+    label: "Projects",
+    icon: FolderKanban,
+    href: "/projects",
+  },
+  {
+    label: "Takeoffs",
+    icon: Rocket,
+    href: "/takeoffs",
+  },
+];
 
 export const SidebarRoutes = () => {
   const mutation = useCheckout();
@@ -51,8 +69,9 @@ export const SidebarRoutes = () => {
       )}
       <ul className="flex flex-col gap-y-1 px-3">
         {/* <SidebarItem href="/" icon={Home} label="Home" isActive={pathname === "/"} /> */}
-        <SidebarItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" isActive={pathname === "/dashboard"} />
-        <SidebarItem href="/projects" icon={FolderKanban} label="Projects" isActive={pathname === "/projects"} />
+        {routes.map((route) => (
+          <SidebarItem key={route.href} href={route.href} icon={route.icon} label={route.label} isActive={pathname === route.href} />
+        ))}
       </ul>
       <div className="px-3">
         <Separator />
