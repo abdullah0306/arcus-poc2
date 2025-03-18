@@ -122,7 +122,15 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center space-x-2">
           <div className="text-sm text-muted-foreground">
-            Mar 14, 2025 - Mar 14, 2025
+            {new Date().toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric"
+            })} - {new Date().toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric"
+            })}
           </div>
         </div>
       </div>
