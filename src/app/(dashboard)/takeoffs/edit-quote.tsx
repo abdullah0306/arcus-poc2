@@ -106,7 +106,7 @@ export function EditQuote({
               </Dialog.Close>
             </div>
             <Dialog.Description className="text-sm text-gray-500">
-              Make changes to your quote here. Click save when you're done.
+              Make changes to your quote here. Click save when you&apos;re done.
             </Dialog.Description>
           </div>
 
