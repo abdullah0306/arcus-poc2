@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -22,50 +21,66 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-interface CreateQuoteProps {
+interface EditQuoteProps {
+  takeoff: {
+    id: string;
+    quoteNumber: string;
+    clientName: string;
+    clientEmail: string;
+    status: "Pending" | "Approved" | "Rejected";
+  } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
 }
 
-export function CreateQuote({
+export function EditQuote({
+  takeoff,
   open,
   onOpenChange,
   onSuccess,
-}: CreateQuoteProps) {
-  const router = useRouter();
+}: EditQuoteProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      quoteNumber: "",
-      clientName: "",
-      clientEmail: "",
-      status: "Pending",
-    },
   });
 
-  const onSubmit = async (data: FormData) => {
+  // Update form values when takeoff changes
+  useEffect(() => {
+    if (takeoff) {
+      form.reset({
+        quoteNumber: takeoff.quoteNumber,
+        clientName: takeoff.clientName,
+        clientEmail: takeoff.clientEmail,
+        status: takeoff.status,
+      });
+    }
+  }, [takeoff, form]);
+
+  const onSubmit = async (values: FormData) => {
+    if (!takeoff?.id) return;
+
     try {
       setIsLoading(true);
-      const response = await fetch("/api/takeoffs", {
-        method: "POST",
+      const response = await fetch(`/api/takeoffs/${takeoff.id}`, {
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(values),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create takeoff");
+        throw new Error("Failed to update takeoff");
       }
 
-      toast.success("Takeoff created successfully");
+      toast.success("Takeoff updated successfully");
       onSuccess();
-      form.reset();
+      onOpenChange(false);
     } catch (error) {
-      toast.error("Something went wrong");
+      console.error("Error updating takeoff:", error);
+      toast.error("Failed to update takeoff");
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +94,7 @@ export function CreateQuote({
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <Dialog.Title className="text-lg font-semibold">
-                Create quote
+                Edit quote
               </Dialog.Title>
               <Dialog.Close asChild>
                 <button
@@ -91,7 +106,7 @@ export function CreateQuote({
               </Dialog.Close>
             </div>
             <Dialog.Description className="text-sm text-gray-500">
-              Fill in the details below to create a new quote.
+              Make changes to your quote here. Click save when you&apos;re done.
             </Dialog.Description>
           </div>
 
@@ -184,7 +199,7 @@ export function CreateQuote({
                 disabled={isLoading}
                 className="bg-orange-500 hover:bg-orange-600"
               >
-                Create quote
+                {isLoading ? "Saving..." : "Save changes"}
               </Button>
             </div>
           </form>

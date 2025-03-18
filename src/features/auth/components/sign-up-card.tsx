@@ -30,7 +30,7 @@ export const SignUpCard = () => {
     setLoadingGithub(provider === "github");
     setLoadingGoogle(provider === "google");
 
-    signIn(provider, { callbackUrl: "/" });
+    signIn(provider, { callbackUrl: "/dashboard" });
   };
 
   const onCredentialSignUp = (e: React.FormEvent<HTMLFormElement>) => {
@@ -48,7 +48,7 @@ export const SignUpCard = () => {
           signIn("credentials", {
             email,
             password,
-            callbackUrl: "/",
+            callbackUrl: "/dashboard",
           });
         },
       }
