@@ -1,8 +1,10 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { addDays, addWeeks, format, startOfWeek, subWeeks } from "date-fns";
+import { CalendarIcon } from "@/components/ui/calendar-icon";
 
 interface TimeSlot {
   time: string;
@@ -22,27 +24,44 @@ const timeSlots: TimeSlot[] = [
 ];
 
 export default function CalendarPage() {
-  const [currentDate] = useState(new Date());
-  const [currentWeek] = useState(() => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentWeek, setCurrentWeek] = useState(() => {
     const today = new Date();
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 0); // Adjust when today is Sunday
-    const sunday = new Date(today.setDate(diff));
-    
-    const week = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(sunday);
-      date.setDate(sunday.getDate() + i);
-      week.push(date);
-    }
-    return week;
+    const startDay = startOfWeek(today);
+    return Array.from({ length: 7 }, (_, i) => addDays(startDay, i));
   });
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
+  const goToPreviousWeek = () => {
+    const newDate = subWeeks(currentDate, 1);
+    setCurrentDate(newDate);
+    updateWeek(newDate);
+  };
+
+  const goToNextWeek = () => {
+    const newDate = addWeeks(currentDate, 1);
+    setCurrentDate(newDate);
+    updateWeek(newDate);
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    updateWeek(today);
+  };
+
+  const updateWeek = (date: Date) => {
+    const startDay = startOfWeek(date);
+    setCurrentWeek(Array.from({ length: 7 }, (_, i) => addDays(startDay, i)));
+  };
+
+  const formatMonthYear = () => {
+    return format(currentDate, "MMMM yyyy");
+  };
+
+  const formatWeekRange = () => {
+    const firstDay = currentWeek[0];
+    const lastDay = currentWeek[6];
+    return `Week ${format(firstDay, "w")}, ${format(firstDay, "MMM d")} - ${format(lastDay, "MMM d")}, ${format(lastDay, "yyyy")}`;
   };
 
   const getDayNumber = (date: Date) => {
@@ -50,49 +69,60 @@ export default function CalendarPage() {
   };
 
   const getDayName = (date: Date) => {
-    return date.toLocaleDateString("en-US", { weekday: "short" });
+    return format(date, "EEE");
   };
 
   const isToday = (date: Date) => {
     const today = new Date();
-    return date.toDateString() === today.toDateString();
+    return format(date, "yyyy-MM-dd") === format(today, "yyyy-MM-dd");
   };
 
   return (
     <div className="bg-muted h-full flex-1 p-8 flex flex-col">
       <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-x-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {formatDate(currentDate)}
-          </h1>
-          <div className="flex items-center gap-x-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+        <div className="flex items-center gap-x-3">
+          <div className="relative flex items-center justify-center w-[68px]">
+            <div className="absolute">
+              <CalendarIcon 
+                month={format(currentDate, "MMM").toUpperCase()} 
+                date={currentDate.getDate()} 
+              />
+            </div>
+          </div>
+          <div className="flex flex-col">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {formatMonthYear()}
+            </h1>
+            <div className="text-sm text-muted-foreground">
+              Week {format(currentWeek[0], "w")}, {format(currentWeek[0], "MMM d")} - {format(currentWeek[6], "MMM d")}, {format(currentWeek[6], "yyyy")}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-x-2">
           <Button
             variant="outline"
+            className="h-9"
+            onClick={goToPreviousWeek}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
             className="h-9 px-4"
-            onClick={() => {}}
+            onClick={goToToday}
           >
             Today
           </Button>
+          <Button
+            variant="outline"
+            className="h-9"
+            onClick={goToNextWeek}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
           <Button 
             onClick={() => {}}
-            className="h-9 px-4 bg-orange-500 hover:bg-orange-600 text-sm font-medium"
+            className="h-9 px-4 bg-orange-500 hover:bg-orange-600 text-sm font-medium text-white"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add event
