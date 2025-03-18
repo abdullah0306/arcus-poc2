@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Crown, Home, MessageCircleQuestion, FolderKanban, LayoutDashboard, Rocket, Receipt, Package } from "lucide-react";
+import { CreditCard, Crown, Home, MessageCircleQuestion, FolderKanban, LayoutDashboard, Rocket, Receipt, Package, Calendar } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { usePaywall } from "@/features/subscriptions/hooks/use-paywall";
@@ -32,6 +32,11 @@ export const routes = [
     label: "Invoices",
     icon: Receipt,
     href: "/invoices",
+  },
+  {
+    label: "Calendar",
+    icon: Calendar,
+    href: "/calendar",
   },
   {
     label: "Inventory",

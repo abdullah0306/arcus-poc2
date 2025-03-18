@@ -10,6 +10,7 @@ import {
   json,
   uuid,
   varchar,
+  jsonb,
 } from "drizzle-orm/pg-core"
 import type { AdapterAccountType } from "next-auth/adapters"
 
@@ -203,4 +204,25 @@ export const invoices = pgTable("invoices", {
   status: varchar("status", { length: 50 }).notNull().default("Pending"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const calendarEvents = pgTable("calendar_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  allDay: boolean("all_day").default(false),
+  location: text("location"),
+  color: varchar("color", { length: 7 }).default("#FF5F1F"), 
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  userId: text("user_id").notNull(),
+  recurring: jsonb("recurring").default({
+    type: "none",
+    interval: 1,
+    until: null,
+  }),
+  reminderMinutes: integer("reminder_minutes"), 
+  status: varchar("status", { length: 20 }).default("confirmed"), 
 });

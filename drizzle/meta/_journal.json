@@ -36,6 +36,13 @@
       "when": 1741975639547,
       "tag": "0004_easy_doomsday",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1742334077713,
+      "tag": "0005_wealthy_tusk",
+      "breakpoints": true
     }
   ]
 }
