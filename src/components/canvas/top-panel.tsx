@@ -28,12 +28,15 @@ export default function TopPanel() {
   }, [project, currentPage]);
 
   const handlePageChange = async (newPage: number) => {
-    if (!project?.canvasData?.pages || newPage < 0 || newPage >= project.canvasData.pages.length) return;
+    if (!project?.canvasData?.pages || newPage < 0 || newPage >= totalPages) return;
     
     if (canvas) {
+      // Get the actual page index (add 1 to skip the rect object)
+      const pageIndex = project.canvasData.pages[0].type === 'rect' ? newPage + 1 : newPage;
+      
       // Create a fabric.Image from the new page
       fabric.Image.fromURL(
-        project.canvasData.pages[newPage],
+        project.canvasData.pages[pageIndex],
         (img) => {
           // Calculate scale to fit Arcus AI while maintaining aspect ratio
           const canvasWidth = canvas.getWidth();
@@ -57,14 +60,21 @@ export default function TopPanel() {
             hoverCursor: 'default',
           });
 
-          // Clear existing objects and add the new image
+          // Clear existing objects except the rect
           const existingObjects = canvas.getObjects();
-          const backgroundImage = existingObjects.find(obj => !obj.selectable);
+          const backgroundImage = existingObjects.find(obj => !obj.selectable && obj.type !== 'rect');
           if (backgroundImage) {
             canvas.remove(backgroundImage);
           }
           canvas.add(img);
           img.sendToBack();
+          
+          // Make sure rect stays at the back
+          const rect = existingObjects.find(obj => obj.type === 'rect');
+          if (rect) {
+            rect.sendToBack();
+          }
+          
           canvas.renderAll();
         },
         { crossOrigin: 'anonymous' }

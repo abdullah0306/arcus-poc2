@@ -80,6 +80,14 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
       
       while (retryCount < MAX_RETRIES) {
         try {
+          // Get current canvas dimensions and properties for the rect
+          const canvas = document.createElement('canvas');
+          const container = document.querySelector('.canvas-container');
+          const width = container?.clientWidth || 1920;
+          const height = container?.clientHeight || 1080;
+          const left = -(width / 5.18); // Calculated based on canvas width
+          const top = -(height / 3.09); // Calculated based on canvas height
+
           const response = await fetch("/api/canvas-projects", {
             method: "POST",
             headers: {
@@ -89,7 +97,54 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
               name: fileName,
               canvasData: {
                 version: "1.0",
-                pages: chunk,
+                pages: chunkIndex === 0 ? [
+                  {
+                    type: "rect",
+                    version: "5.3.0",
+                    originX: "left",
+                    originY: "top",
+                    left: left,
+                    top: top,
+                    width: width,
+                    height: height,
+                    fill: "white",
+                    stroke: null,
+                    strokeWidth: 1,
+                    strokeDashArray: null,
+                    strokeLineCap: "butt",
+                    strokeDashOffset: 0,
+                    strokeLineJoin: "miter",
+                    strokeUniform: false,
+                    strokeMiterLimit: 4,
+                    scaleX: 1,
+                    scaleY: 1,
+                    angle: 0,
+                    flipX: false,
+                    flipY: false,
+                    opacity: 1,
+                    shadow: {
+                      color: "rgba(0,0,0,0.8)",
+                      blur: 5,
+                      offsetX: 0,
+                      offsetY: 0,
+                      affectStroke: false,
+                      nonScaling: false
+                    },
+                    visible: true,
+                    backgroundColor: "",
+                    fillRule: "nonzero",
+                    paintFirst: "fill",
+                    globalCompositeOperation: "source-over",
+                    skewX: 0,
+                    skewY: 0,
+                    rx: 0,
+                    ry: 0,
+                    name: "clip",
+                    selectable: false,
+                    hasControls: false
+                  },
+                  ...chunk
+                ] : chunk,
                 currentPage: 0,
                 totalChunks,
                 chunkIndex,
