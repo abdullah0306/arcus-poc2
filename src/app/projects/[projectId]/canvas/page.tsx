@@ -93,9 +93,26 @@ export default function CanvasPage() {
         
         if (project.canvasData?.pages?.length > 0) {
           console.log('Loading project with pages:', project.canvasData.pages.length);
+          
+          // Check if first page contains the rect object
+          const firstPage = project.canvasData.pages[0];
+          if (typeof firstPage === 'object' && firstPage.type === 'rect') {
+            // Add the rectangle
+            const rect = new fabric.Rect(firstPage);
+            canvasRef.current?.add(rect);
+            rect.sendToBack();
+            
+            // Set total pages excluding the rect object
+            const totalImagePages = project.canvasData.pages.length - 1; // Exclude rect object
+            setTotalPages(totalImagePages);
+            // Load the first image (second element)
+            await handlePDFProcessed([project.canvasData.pages[1]]);
+          } else {
+            // This is a subsequent chunk, just load the images
+            setTotalPages(project.canvasData.pages.length);
+            await handlePDFProcessed([project.canvasData.pages[0]]);
+          }
           setCurrentPage(0);
-          setTotalPages(project.canvasData.pages.length);
-          await handlePDFProcessed([project.canvasData.pages[0]]); // Load first page initially
         } else {
           setIsLoading(false);
         }
