@@ -43,7 +43,7 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
     setupWorker();
   }, []);
 
-  const processPage = async (page: any, scale: number = 1.5): Promise<string> => {
+  const processPage = async (page: any, scale: number = 1.5): Promise<any> => {
     const viewport = page.getViewport({ scale });
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d")!;
@@ -58,14 +58,36 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
       }).promise;
 
       // Convert to JPEG with balanced quality (0.85) for good quality while keeping size reasonable
-      return canvas.toDataURL("image/jpeg", 0.85);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      
+      // Create a fabric.js compatible JSON object
+      return {
+        type: "image",
+        version: "5.3.0",
+        originX: "left",
+        originY: "top",
+        left: 0,
+        top: 0,
+        width: viewport.width,
+        height: viewport.height,
+        src: dataUrl,
+        crossOrigin: "anonymous",
+        filters: [],
+        selectable: false,
+        evented: false,
+        hasControls: false,
+        hasBorders: false,
+        lockMovementX: true,
+        lockMovementY: true,
+        hoverCursor: 'default'
+      };
     } finally {
       canvas.width = 0;
       canvas.height = 0;
     }
   };
 
-  const uploadInChunks = async (pages: string[], fileName: string) => {
+  const uploadInChunks = async (pages: any[], fileName: string) => {
     const CHUNK_SIZE = 1; // Process one page at a time
     const totalChunks = Math.ceil(pages.length / CHUNK_SIZE);
     let projectId: string | undefined;
