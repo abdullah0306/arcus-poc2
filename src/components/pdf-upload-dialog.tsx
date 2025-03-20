@@ -89,10 +89,10 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
           const canvasHeight = height * 0.9;
           
           // Calculate the rect dimensions and position
-          const rectWidth = canvasWidth * 1.2;
-          const rectHeight = canvasHeight * 1.2;
-          const left = -(canvasWidth * 0.1);
-          const top = -(canvasHeight * 0.1);
+          const rectWidth = 1535.76;
+          const rectHeight = 702;
+          const left = -127.98;
+          const top = -58.5;
 
           const response = await fetch("/api/canvas-projects", {
             method: "POST",
