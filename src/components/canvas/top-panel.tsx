@@ -17,18 +17,26 @@ export default function TopPanel() {
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { projectId } = useParams();
   const { data: project } = useGetCanvasProject(projectId as string);
-  const { currentPage, totalPages, setCurrentPage } = usePDFPageStore();
+  const { currentPage, setCurrentPage } = usePDFPageStore();
+
+  // Calculate actual page count excluding the rect object
+  const actualPageCount = project?.canvasData?.pages 
+    ? (project.canvasData.pages[0]?.type === 'rect' 
+      ? project.canvasData.pages.length - 1 
+      : project.canvasData.pages.length)
+    : 0;
 
   useEffect(() => {
     if (project?.canvasData?.pages) {
       console.log('Project pages:', project.canvasData.pages);
       console.log('Current page:', currentPage);
-      console.log('Total pages:', project.canvasData.pages.length);
+      console.log('Actual page count:', actualPageCount);
     }
-  }, [project, currentPage]);
+  }, [project, currentPage, actualPageCount]);
 
   const handlePageChange = async (newPage: number) => {
-    if (!project?.canvasData?.pages || newPage < 0 || newPage >= totalPages) return;
+    if (!project?.canvasData?.pages) return;
+    if (newPage < 0 || newPage >= actualPageCount) return;
     
     if (canvas) {
       // Get the actual page index (add 1 to skip the rect object)
@@ -170,10 +178,10 @@ export default function TopPanel() {
               isDarkMode 
                 ? "hover:bg-orange-500/10" 
                 : "hover:bg-orange-500/10",
-              currentPage === 0 && "opacity-50 cursor-not-allowed"
+              !project?.canvasData?.pages || currentPage <= 0 && "opacity-50 cursor-not-allowed"
             )}
             onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 0}
+            disabled={!project?.canvasData?.pages || currentPage <= 0}
           >
             <ChevronLeft className={cn(
               "w-4 h-4 transition-colors",
@@ -188,12 +196,12 @@ export default function TopPanel() {
               "font-medium transition-colors",
               isDarkMode ? "text-orange-100" : "text-zinc-900"
             )}>{project?.name || "Untitled Project"}</h1>
-            {project?.canvasData?.pages && project.canvasData.pages.length > 1 && (
+            {project?.canvasData?.pages && (
               <span className={cn(
                 "text-sm",
                 isDarkMode ? "text-orange-100/70" : "text-zinc-600"
               )}>
-                Page {currentPage + 1} of {project.canvasData.pages.length}
+                Page {currentPage + 1} of {actualPageCount}
               </span>
             )}
           </div>
@@ -204,10 +212,10 @@ export default function TopPanel() {
               isDarkMode 
                 ? "hover:bg-orange-500/10" 
                 : "hover:bg-orange-500/10",
-              !project?.canvasData?.pages || currentPage >= project.canvasData.pages.length - 1 && "opacity-50 cursor-not-allowed"
+              !project?.canvasData?.pages || currentPage >= actualPageCount - 1 && "opacity-50 cursor-not-allowed"
             )}
             onClick={() => handlePageChange(currentPage + 1)}
-            disabled={!project?.canvasData?.pages || currentPage >= project.canvasData.pages.length - 1}
+            disabled={!project?.canvasData?.pages || currentPage >= actualPageCount - 1}
           >
             <ChevronRight className={cn(
               "w-4 h-4 transition-colors",
