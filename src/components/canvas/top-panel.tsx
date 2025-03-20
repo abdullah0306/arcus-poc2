@@ -41,52 +41,103 @@ export default function TopPanel() {
     if (canvas) {
       // Get the actual page index (add 1 to skip the rect object)
       const pageIndex = project.canvasData.pages[0].type === 'rect' ? newPage + 1 : newPage;
+      const pageData = project.canvasData.pages[pageIndex];
       
-      // Create a fabric.Image from the new page
-      fabric.Image.fromURL(
-        project.canvasData.pages[pageIndex],
-        (img) => {
-          // Calculate scale to fit Arcus AI while maintaining aspect ratio
-          const canvasWidth = canvas.getWidth();
-          const canvasHeight = canvas.getHeight();
-          const scale = Math.min(
-            (canvasWidth * 0.9) / img.width!,
-            (canvasHeight * 0.9) / img.height!
-          );
+      if (typeof pageData === 'string') {
+        // Legacy format - data URL string
+        fabric.Image.fromURL(
+          pageData,
+          (img) => {
+            // Calculate scale to fit while maintaining aspect ratio
+            const canvasWidth = canvas.getWidth();
+            const canvasHeight = canvas.getHeight();
+            const scale = Math.min(
+              (canvasWidth * 0.9) / img.width!,
+              (canvasHeight * 0.9) / img.height!
+            );
 
-          // Set image properties
-          img.scale(scale);
-          img.set({
-            left: (canvasWidth - img.width! * scale) / 2,
-            top: (canvasHeight - img.height! * scale) / 2,
-            selectable: false,
-            evented: false,
-            hasControls: false,
-            hasBorders: false,
-            lockMovementX: true,
-            lockMovementY: true,
-            hoverCursor: 'default',
-          });
+            // Set image properties
+            img.scale(scale);
+            img.set({
+              left: (canvasWidth - img.width! * scale) / 2,
+              top: (canvasHeight - img.height! * scale) / 2,
+              selectable: false,
+              evented: false,
+              hasControls: false,
+              hasBorders: false,
+              lockMovementX: true,
+              lockMovementY: true,
+              hoverCursor: 'default',
+            });
 
-          // Clear existing objects except the rect
-          const existingObjects = canvas.getObjects();
-          const backgroundImage = existingObjects.find(obj => !obj.selectable && obj.type !== 'rect');
-          if (backgroundImage) {
-            canvas.remove(backgroundImage);
-          }
-          canvas.add(img);
-          img.sendToBack();
-          
-          // Make sure rect stays at the back
-          const rect = existingObjects.find(obj => obj.type === 'rect');
-          if (rect) {
-            rect.sendToBack();
-          }
-          
-          canvas.renderAll();
-        },
-        { crossOrigin: 'anonymous' }
-      );
+            // Clear existing objects except the rect
+            const existingObjects = canvas.getObjects();
+            const backgroundImage = existingObjects.find(obj => !obj.selectable && obj.type !== 'rect');
+            if (backgroundImage) {
+              canvas.remove(backgroundImage);
+            }
+            canvas.add(img);
+            img.sendToBack();
+            
+            // Make sure rect stays at the back
+            const rect = existingObjects.find(obj => obj.type === 'rect');
+            if (rect) {
+              rect.sendToBack();
+            }
+            
+            canvas.renderAll();
+          },
+          { crossOrigin: 'anonymous' }
+        );
+      } else if (typeof pageData === 'object' && pageData.type === 'image') {
+        // New format - JSON object
+        fabric.Image.fromURL(
+          pageData.src,
+          (img) => {
+            // Calculate scale to fit while maintaining aspect ratio
+            const canvasWidth = canvas.getWidth();
+            const canvasHeight = canvas.getHeight();
+            const scale = Math.min(
+              (canvasWidth * 0.9) / pageData.width,
+              (canvasHeight * 0.9) / pageData.height
+            );
+
+            // Set image properties
+            img.scale(scale);
+            img.set({
+              left: (canvasWidth - pageData.width * scale) / 2,
+              top: (canvasHeight - pageData.height * scale) / 2,
+              selectable: false,
+              evented: false,
+              hasControls: false,
+              hasBorders: false,
+              lockMovementX: true,
+              lockMovementY: true,
+              hoverCursor: 'default',
+            });
+
+            // Clear existing objects except the rect
+            const existingObjects = canvas.getObjects();
+            const backgroundImage = existingObjects.find(obj => !obj.selectable && obj.type !== 'rect');
+            if (backgroundImage) {
+              canvas.remove(backgroundImage);
+            }
+            canvas.add(img);
+            img.sendToBack();
+            
+            // Make sure rect stays at the back
+            const rect = existingObjects.find(obj => obj.type === 'rect');
+            if (rect) {
+              rect.sendToBack();
+            }
+            
+            canvas.renderAll();
+          },
+          { crossOrigin: 'anonymous' }
+        );
+      } else {
+        console.error("Unsupported page data format:", pageData);
+      }
     }
     
     setCurrentPage(newPage);
