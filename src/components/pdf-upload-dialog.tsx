@@ -80,13 +80,19 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
       
       while (retryCount < MAX_RETRIES) {
         try {
-          // Get current canvas dimensions and properties for the rect
-          const canvas = document.createElement('canvas');
-          const container = document.querySelector('.canvas-container');
-          const width = container?.clientWidth || 1920;
-          const height = container?.clientHeight || 1080;
-          const left = -(width / 5.18); // Calculated based on canvas width
-          const top = -(height / 3.09); // Calculated based on canvas height
+          // Get viewport dimensions
+          const width = window.innerWidth;
+          const height = window.innerHeight;
+          
+          // Calculate the canvas dimensions (90% of viewport)
+          const canvasWidth = width * 0.9;
+          const canvasHeight = height * 0.9;
+          
+          // Calculate the rect dimensions and position
+          const rectWidth = canvasWidth * 1.2;
+          const rectHeight = canvasHeight * 1.2;
+          const left = -(canvasWidth * 0.1);
+          const top = -(canvasHeight * 0.1);
 
           const response = await fetch("/api/canvas-projects", {
             method: "POST",
@@ -105,8 +111,8 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
                     originY: "top",
                     left: left,
                     top: top,
-                    width: width,
-                    height: height,
+                    width: rectWidth,
+                    height: rectHeight,
                     fill: "white",
                     stroke: null,
                     strokeWidth: 1,
