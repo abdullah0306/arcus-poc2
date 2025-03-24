@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/theme-store";
@@ -192,7 +191,7 @@ export default function RightPanel() {
           ? { 
               ...option, 
               enabled: !option.enabled,
-              progress: option.enabled ? 0 : 100 // Reset progress when disabled
+              progress: option.enabled ? 0 : 100
             }
           : option
       )
