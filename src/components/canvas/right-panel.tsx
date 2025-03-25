@@ -1,10 +1,12 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/theme-store";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 
 interface APIOption {
   id: string;
@@ -112,9 +114,109 @@ const doorWindowSection: APISection = {
 };
 
 export default function RightPanel() {
+  const { projectId } = useParams();
   const { isDarkMode } = useThemeStore();
   const [expandedOption, setExpandedOption] = useState<string | null>(null);
-  
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [options, setOptions] = useState<APIOption[]>(apiOptions);
+
+  const handleDoorsWindowsDetection = async (enabled: boolean) => {
+    if (!enabled || !projectId) {
+      console.log('Detection not enabled or no project ID');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setProcessingProgress(0);
+      console.log('Starting doors and windows detection...');
+
+      // Get the current canvas image
+      const response = await fetch(`/api/canvas-projects/${projectId}`);
+      console.log('Fetched canvas project');
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch project: ${response.statusText}`);
+      }
+
+      const project = await response.json();
+      console.log('Project data:', project);
+      
+      if (!project.canvasData?.pages?.[0]) {
+        throw new Error("No image found in canvas");
+      }
+
+      console.log('Sending image to doors-windows detection API');
+      // Send the image to doors-windows detection API
+      const apiResponse = await fetch(`/api/canvas/doors-windows`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId,
+          imageUrl: project.canvasData.pages[0]
+        })
+      });
+
+      console.log('API response status:', apiResponse.status);
+      
+      if (!apiResponse.ok) {
+        throw new Error(`API request failed: ${apiResponse.statusText}`);
+      }
+
+      const result = await apiResponse.json();
+      console.log('API response data:', result);
+      
+      if (result.success) {
+        console.log("Cloudinary URL:", result.cloudinaryUrl);
+        // In future, we'll use result.detectionResults
+      } else {
+        throw new Error(result.error || "Detection failed");
+      }
+    } catch (error) {
+      console.error("Error in doors-windows detection:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      alert("Failed to process image: " + errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const toggleOption = (optionId: string) => {
+    setOptions(prevOptions => 
+      prevOptions.map(option => 
+        option.id === optionId 
+          ? { 
+              ...option, 
+              enabled: !option.enabled,
+              progress: option.enabled ? 0 : 100
+            }
+          : option
+      )
+    );
+
+    // Only trigger detection when doors-windows is toggled on
+    if (optionId === "doors-windows") {
+      const newOptions = options.map(option => 
+        option.id === optionId 
+          ? { 
+              ...option, 
+              enabled: !option.enabled,
+              progress: option.enabled ? 0 : 100
+            }
+          : option
+      );
+      
+      const option = newOptions.find(opt => opt.id === optionId);
+      if (option?.enabled) {
+        console.log('Doors and windows detection switch turned on');
+        handleDoorsWindowsDetection(true);
+      }
+    }
+  };
+
   return (
     <div className={cn(
       "w-[300px] border-l transition-colors flex flex-col h-[calc(100vh-48px)]", 
@@ -152,7 +254,7 @@ export default function RightPanel() {
         <div className="p-4 space-y-4">
           {/* Detection Options */}
           <div className="space-y-3">
-            {apiOptions.map((option) => (
+            {options.map((option) => (
               <div 
                 key={option.id} 
                 className={cn(
@@ -178,7 +280,10 @@ export default function RightPanel() {
                   <Switch 
                     checked={option.enabled}
                     className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"}
-                    onClick={(e) => e.stopPropagation()} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleOption(option.id);
+                    }} 
                   />
                 </div>
                 <p className={cn(
@@ -225,15 +330,20 @@ export default function RightPanel() {
 
       {/* Next Button - Fixed at bottom */}
       <div className="p-4 border-t flex-shrink-0"> 
-        <button
-          className={cn(
-            "w-full py-2 px-4 rounded-lg font-medium text-white transition-colors",
-            "bg-orange-500 hover:bg-orange-600",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
+        <Button
+          onClick={() => handleDoorsWindowsDetection(true)}
+          disabled={isProcessing}
+          className="w-full"
         >
-          Next
-        </button>
+          {isProcessing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            "Detect Doors & Windows"
+          )}
+        </Button>
       </div>
     </div>
   );
