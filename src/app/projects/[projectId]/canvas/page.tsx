@@ -95,7 +95,15 @@ export default function CanvasPage() {
           console.log('Loading project with pages:', project.canvasData.pages.length);
           setCurrentPage(0);
           setTotalPages(project.canvasData.pages.length);
-          await handlePDFProcessed([project.canvasData.pages[0]]); // Load first page initially
+          
+          // Load the complete_doors_and_windows image if available, fallback to pages array
+          const currentPage = 0;
+          const imageData = project.canvasData.complete_doors_and_windows?.[currentPage] || 
+                         project.canvasData.pages[currentPage];
+          
+          if (imageData) {
+            await handlePDFProcessed([imageData]);
+          }
         } else {
           setIsLoading(false);
         }

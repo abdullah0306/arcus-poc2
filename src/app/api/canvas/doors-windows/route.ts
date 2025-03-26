@@ -4,6 +4,13 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { canvasProjects } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { CanvasData } from "@/types/canvas";
+
+interface DetectionResults {
+  doors: string[];
+  windows: string[];
+  processingTime: string;
+}
 
 export async function POST(request: Request) {
   try {
@@ -32,28 +39,47 @@ export async function POST(request: Request) {
     }
 
     const project = projects[0];
-    const canvasData = project.canvasData as {
-      version: string;
-      pages: string[];
-      currentPage: number;
+    const canvasData = project.canvasData as CanvasData;
+
+    // 3. Update the project with the new canvas data
+    // Keep the original cloudinary URL in pages array
+    // Create new arrays with the same URL for now
+    const updatedCanvasData: CanvasData = {
+      ...canvasData,
+      pages: [...canvasData.pages],
+      complete_doors_and_windows: canvasData.complete_doors_and_windows || [],
+      single_doors: canvasData.single_doors || [],
+      double_doors: canvasData.double_doors || [],
+      windows: canvasData.windows || [],
+      single_doors_and_windows: canvasData.single_doors_and_windows || [],
+      single_doors_and_double_doors: canvasData.single_doors_and_double_doors || [],
+      double_doors_and_windows: canvasData.double_doors_and_windows || []
     };
 
-    // 3. Replace the current page's base64 image with Cloudinary URL
-    const updatedPages = [...canvasData.pages];
-    updatedPages[canvasData.currentPage] = cloudinaryUrl;
+    // Replace current page's image in all arrays
+    const currentPage = canvasData.currentPage;
+    if (currentPage >= 0 && currentPage < canvasData.pages.length) {
+      // Update pages array with cloudinary URL
+      updatedCanvasData.pages[currentPage] = cloudinaryUrl;
+      
+      // Update all other arrays with the same URL
+      updatedCanvasData.complete_doors_and_windows[currentPage] = cloudinaryUrl;
+      updatedCanvasData.single_doors[currentPage] = cloudinaryUrl;
+      updatedCanvasData.double_doors[currentPage] = cloudinaryUrl;
+      updatedCanvasData.windows[currentPage] = cloudinaryUrl;
+      updatedCanvasData.single_doors_and_windows[currentPage] = cloudinaryUrl;
+      updatedCanvasData.single_doors_and_double_doors[currentPage] = cloudinaryUrl;
+      updatedCanvasData.double_doors_and_windows[currentPage] = cloudinaryUrl;
+    }
 
-    // 4. Update the project with the new canvas data
     await db
       .update(canvasProjects)
       .set({
-        canvasData: {
-          ...canvasData,
-          pages: updatedPages
-        }
+        canvasData: updatedCanvasData
       })
       .where(eq(canvasProjects.id, projectId));
 
-    // 5. Return the updated project data
+    // 4. Return the updated project data
     const updatedProject = await db
       .select()
       .from(canvasProjects)

@@ -13,6 +13,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core"
 import type { AdapterAccountType } from "next-auth/adapters"
+import { CanvasData } from "@/types/canvas";
 
 export const users = pgTable("user", {
   id: text("id")
@@ -97,14 +98,6 @@ export const authenticators = pgTable(
   })
 )
 
-interface CanvasData {
-  version: string;
-  pages: string[];
-  currentPage: number;
-  totalChunks?: number;
-  chunkIndex?: number;
-}
-
 export const projects = pgTable("project", {
   id: text("id")
     .primaryKey()
@@ -134,27 +127,24 @@ export const projectsRelations = relations(projects, ({ one }) => ({
 
 export const projectsInsertSchema = createInsertSchema(projects);
 
-export const canvasProjects = pgTable("canvas_project", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
+export const canvasProjects = pgTable("canvas_projects", {
+  id: text("id").primaryKey(),
   name: text("name").notNull(),
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, {
-      onDelete: "cascade",
-    }),
-  canvasData: json("canvas_data").$type<CanvasData>().notNull().default({
+  userId: text("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  canvasData: jsonb("canvas_data").$type<CanvasData>().notNull().default({
     version: "1.0",
     pages: [],
     currentPage: 0,
-  }),
-  createdAt: timestamp("createdAt", { mode: "date" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: timestamp("updatedAt", { mode: "date" })
-    .notNull()
-    .$defaultFn(() => new Date()),
+    complete_doors_and_windows: [],
+    single_doors: [],
+    double_doors: [],
+    windows: [],
+    single_doors_and_windows: [],
+    single_doors_and_double_doors: [],
+    double_doors_and_windows: []
+  } as CanvasData),
 });
 
 export const canvasProjectsRelations = relations(canvasProjects, ({ one }) => ({

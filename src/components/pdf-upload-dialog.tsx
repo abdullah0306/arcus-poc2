@@ -94,6 +94,13 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
                 totalChunks,
                 chunkIndex,
                 projectId,
+                complete_doors_and_windows: chunkIndex === 0 ? [] : undefined,
+                single_doors: chunkIndex === 0 ? [] : undefined,
+                double_doors: chunkIndex === 0 ? [] : undefined,
+                windows: chunkIndex === 0 ? [] : undefined,
+                single_doors_and_windows: chunkIndex === 0 ? [] : undefined,
+                single_doors_and_double_doors: chunkIndex === 0 ? [] : undefined,
+                double_doors_and_windows: chunkIndex === 0 ? [] : undefined
               },
             }),
           });

@@ -3,18 +3,10 @@ import { db } from "@/lib/db";
 import { canvasProjects } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { CanvasData } from "@/types/canvas";
 
 export const maxDuration = 60; // Maximum duration allowed for Vercel hobby plan
 export const dynamic = 'force-dynamic';
-
-interface CanvasData {
-  version: string;
-  pages: string[];
-  currentPage: number;
-  totalChunks?: number;
-  chunkIndex?: number;
-  projectId?: string;
-}
 
 export async function POST(req: Request) {
   try {
@@ -31,11 +23,18 @@ export async function POST(req: Request) {
       return new NextResponse("Invalid canvas data format", { status: 400 });
     }
 
-    // Create default canvas data
+    // Create default canvas data with all arrays initialized
     const defaultCanvasData: CanvasData = {
       version: "1.0",
       pages: [],
       currentPage: 0,
+      complete_doors_and_windows: [],
+      single_doors: [],
+      double_doors: [],
+      windows: [],
+      single_doors_and_windows: [],
+      single_doors_and_double_doors: [],
+      double_doors_and_windows: []
     };
 
     // Implement chunking for large files
@@ -51,6 +50,14 @@ export async function POST(req: Request) {
       version: canvasData.version || defaultCanvasData.version,
       totalChunks: canvasData.totalChunks,
       chunkIndex: canvasData.chunkIndex,
+      projectId: canvasData.projectId,
+      complete_doors_and_windows: canvasData.complete_doors_and_windows || defaultCanvasData.complete_doors_and_windows,
+      single_doors: canvasData.single_doors || defaultCanvasData.single_doors,
+      double_doors: canvasData.double_doors || defaultCanvasData.double_doors,
+      windows: canvasData.windows || defaultCanvasData.windows,
+      single_doors_and_windows: canvasData.single_doors_and_windows || defaultCanvasData.single_doors_and_windows,
+      single_doors_and_double_doors: canvasData.single_doors_and_double_doors || defaultCanvasData.single_doors_and_double_doors,
+      double_doors_and_windows: canvasData.double_doors_and_windows || defaultCanvasData.double_doors_and_windows
     };
 
     // Create project with validated data
@@ -78,7 +85,36 @@ export async function POST(req: Request) {
         ],
         // Keep track of upload progress
         totalChunks: finalCanvasData.totalChunks,
-        chunkIndex: finalCanvasData.chunkIndex
+        chunkIndex: finalCanvasData.chunkIndex,
+        // Merge all other arrays
+        complete_doors_and_windows: [
+          ...existingCanvasData.complete_doors_and_windows,
+          ...finalCanvasData.complete_doors_and_windows
+        ],
+        single_doors: [
+          ...existingCanvasData.single_doors,
+          ...finalCanvasData.single_doors
+        ],
+        double_doors: [
+          ...existingCanvasData.double_doors,
+          ...finalCanvasData.double_doors
+        ],
+        windows: [
+          ...existingCanvasData.windows,
+          ...finalCanvasData.windows
+        ],
+        single_doors_and_windows: [
+          ...existingCanvasData.single_doors_and_windows,
+          ...finalCanvasData.single_doors_and_windows
+        ],
+        single_doors_and_double_doors: [
+          ...existingCanvasData.single_doors_and_double_doors,
+          ...finalCanvasData.single_doors_and_double_doors
+        ],
+        double_doors_and_windows: [
+          ...existingCanvasData.double_doors_and_windows,
+          ...finalCanvasData.double_doors_and_windows
+        ]
       };
       
       // Update the project with merged data
@@ -99,9 +135,10 @@ export async function POST(req: Request) {
       const insertedProjects = await db
         .insert(canvasProjects)
         .values({
+          id: crypto.randomUUID(),
           name,
           userId: session.user.id,
-          canvasData: finalCanvasData,
+          canvasData: finalCanvasData
         })
         .returning();
 
@@ -110,7 +147,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(canvasProject);
   } catch (error) {
-    console.error("[CANVAS_PROJECTS_POST]", error);
+    console.error("Error in canvas-projects POST:", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
@@ -122,20 +159,25 @@ export async function GET(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const userProjects = await db
-      .select({
-        id: canvasProjects.id,
-        name: canvasProjects.name,
-        createdAt: canvasProjects.createdAt,
-        updatedAt: canvasProjects.updatedAt,
-      })
-      .from(canvasProjects)
-      .where(eq(canvasProjects.userId, session.user.id))
-      .orderBy(canvasProjects.createdAt);
+    const { searchParams } = new URL(req.url);
+    const projectId = searchParams.get("projectId");
 
-    return NextResponse.json(userProjects);
+    if (!projectId) {
+      return new NextResponse("Project ID required", { status: 400 });
+    }
+
+    const projects = await db
+      .select()
+      .from(canvasProjects)
+      .where(eq(canvasProjects.id, projectId));
+
+    if (!projects || projects.length === 0) {
+      return new NextResponse("Project not found", { status: 404 });
+    }
+
+    return NextResponse.json(projects[0]);
   } catch (error) {
-    console.error("[CANVAS_PROJECTS_GET]", error);
+    console.error("Error in canvas-projects GET:", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }
