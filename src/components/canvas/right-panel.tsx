@@ -184,36 +184,35 @@ export default function RightPanel() {
     }
   };
 
-  const toggleOption = (optionId: string) => {
-    setOptions(prevOptions => 
-      prevOptions.map(option => 
-        option.id === optionId 
-          ? { 
-              ...option, 
-              enabled: !option.enabled,
-              progress: option.enabled ? 0 : 100
-            }
-          : option
-      )
-    );
+  const handleOptionToggle = async (optionId: string) => {
+    try {
+      const option = apiOptions.find(opt => opt.id === optionId);
+      if (!option) return;
 
-    // Only trigger detection when doors-windows is toggled on
-    if (optionId === "doors-windows") {
-      const newOptions = options.map(option => 
-        option.id === optionId 
-          ? { 
-              ...option, 
-              enabled: !option.enabled,
-              progress: option.enabled ? 0 : 100
-            }
-          : option
+      const updatedOptions = apiOptions.map(opt => 
+        opt.id === optionId 
+          ? { ...opt, enabled: !opt.enabled }
+          : opt
       );
-      
-      const option = newOptions.find(opt => opt.id === optionId);
-      if (option?.enabled) {
-        console.log('Doors and windows detection switch turned on');
+
+      setOptions(updatedOptions);
+
+      // Dispatch API toggle event
+      const event = new CustomEvent("apiToggle", {
+        detail: {
+          apiId: optionId,
+          enabled: !option.enabled
+        }
+      });
+      window.dispatchEvent(event);
+
+      // Your existing API call logic here
+      if (optionId === "doors-windows") {
+        // Your existing doors-windows API call logic
         handleDoorsWindowsDetection(true);
       }
+    } catch (error) {
+      console.error("Error toggling option:", error);
     }
   };
 
@@ -282,7 +281,7 @@ export default function RightPanel() {
                     className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"}
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleOption(option.id);
+                      handleOptionToggle(option.id);
                     }} 
                   />
                 </div>
