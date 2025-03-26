@@ -13,6 +13,14 @@ interface CanvasData {
   currentPage: number;
   totalChunks?: number;
   chunkIndex?: number;
+  projectId?: string;
+  complete_doors_and_windows: string[];
+  single_doors: string[];
+  double_doors: string[];
+  windows: string[];
+  single_doors_and_windows: string[];
+  single_doors_and_double_doors: string[];
+  double_doors_and_windows: string[];
 }
 
 export async function GET(
@@ -65,16 +73,32 @@ export async function PATCH(
       version: "1.0",
       pages: [],
       currentPage: 0,
+      complete_doors_and_windows: [],
+      single_doors: [],
+      double_doors: [],
+      windows: [],
+      single_doors_and_windows: [],
+      single_doors_and_double_doors: [],
+      double_doors_and_windows: [],
     };
 
     // Merge with provided data if it exists
-    const finalCanvasData: CanvasData = canvasData ? {
-      ...defaultCanvasData,
-      ...canvasData,
-      pages: canvasData.pages || defaultCanvasData.pages,
-      currentPage: canvasData.currentPage || defaultCanvasData.currentPage,
-      version: canvasData.version || defaultCanvasData.version,
-    } : defaultCanvasData;
+    const finalCanvasData: CanvasData = canvasData 
+      ? {
+          ...defaultCanvasData,
+          ...canvasData,
+          pages: canvasData.pages || defaultCanvasData.pages,
+          currentPage: canvasData.currentPage || defaultCanvasData.currentPage,
+          version: canvasData.version || defaultCanvasData.version,
+          complete_doors_and_windows: canvasData.complete_doors_and_windows || [],
+          single_doors: canvasData.single_doors || [],
+          double_doors: canvasData.double_doors || [],
+          windows: canvasData.windows || [],
+          single_doors_and_windows: canvasData.single_doors_and_windows || [],
+          single_doors_and_double_doors: canvasData.single_doors_and_double_doors || [],
+          double_doors_and_windows: canvasData.double_doors_and_windows || [],
+        } 
+      : defaultCanvasData;
 
     const updatedProject = await db
       .update(canvasProjects)

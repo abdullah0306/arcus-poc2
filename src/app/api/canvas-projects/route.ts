@@ -162,20 +162,27 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("projectId");
 
-    if (!projectId) {
-      return new NextResponse("Project ID required", { status: 400 });
+    if (projectId) {
+      // Single project retrieval
+      const projects = await db
+        .select()
+        .from(canvasProjects)
+        .where(eq(canvasProjects.id, projectId));
+
+      if (!projects || projects.length === 0) {
+        return new NextResponse("Project not found", { status: 404 });
+      }
+
+      return NextResponse.json(projects[0]);
+    } else {
+      // List all projects for the user
+      const projects = await db
+        .select()
+        .from(canvasProjects)
+        .where(eq(canvasProjects.userId, session.user.id));
+
+      return NextResponse.json(projects);
     }
-
-    const projects = await db
-      .select()
-      .from(canvasProjects)
-      .where(eq(canvasProjects.id, projectId));
-
-    if (!projects || projects.length === 0) {
-      return new NextResponse("Project not found", { status: 404 });
-    }
-
-    return NextResponse.json(projects[0]);
   } catch (error) {
     console.error("Error in canvas-projects GET:", error);
     return new NextResponse("Internal Error", { status: 500 });
