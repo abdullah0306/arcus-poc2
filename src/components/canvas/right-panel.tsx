@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { usePDFPageStore } from "@/store/pdf-page-store";
 
 interface APIOption {
   id: string;
@@ -116,6 +117,7 @@ const doorWindowSection: APISection = {
 export default function RightPanel() {
   const { projectId } = useParams();
   const { isDarkMode } = useThemeStore();
+  const { currentPage } = usePDFPageStore(); // Use currentPage from the store
   const [expandedOption, setExpandedOption] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
@@ -123,18 +125,15 @@ export default function RightPanel() {
 
   const handleDoorsWindowsDetection = async (enabled: boolean) => {
     if (!enabled || !projectId) {
-      console.log('Detection not enabled or no project ID');
       return;
     }
 
     try {
       setIsProcessing(true);
       setProcessingProgress(0);
-      console.log('Starting doors and windows detection...');
 
-      // Get the current canvas image
+      // Get the current project data
       const response = await fetch(`/api/canvas-projects/${projectId}`);
-      console.log('Fetched canvas project');
       
       if (!response.ok) {
         throw new Error(`Failed to fetch project: ${response.statusText}`);
@@ -143,7 +142,7 @@ export default function RightPanel() {
       const project = await response.json();
       console.log('Project data:', project);
       
-      if (!project.canvasData?.pages?.[0]) {
+      if (!project.canvasData?.pages?.[currentPage]) {
         throw new Error("No image found in canvas");
       }
 
@@ -156,7 +155,8 @@ export default function RightPanel() {
         },
         body: JSON.stringify({
           projectId,
-          imageUrl: project.canvasData.pages[0]
+          imageUrl: project.canvasData.pages[currentPage],
+          currentPage: currentPage
         })
       });
 
@@ -168,17 +168,12 @@ export default function RightPanel() {
 
       const result = await apiResponse.json();
       console.log('API response data:', result);
-      
-      if (result.success) {
-        console.log("Cloudinary URL:", result.cloudinaryUrl);
-        // In future, we'll use result.detectionResults
-      } else {
-        throw new Error(result.error || "Detection failed");
-      }
+
+      // Update the progress
+      setProcessingProgress(100);
     } catch (error) {
-      console.error("Error in doors-windows detection:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-      alert("Failed to process image: " + errorMessage);
+      console.error("Error during doors/windows detection:", error);
+      alert(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setIsProcessing(false);
     }

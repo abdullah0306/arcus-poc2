@@ -19,10 +19,14 @@ export async function POST(request: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { projectId, imageUrl } = await request.json();
+    const { projectId, imageUrl, currentPage } = await request.json();
     
     if (!projectId) {
       return new NextResponse("Project ID is required", { status: 400 });
+    }
+
+    if (typeof currentPage !== 'number') {
+      return new NextResponse("Current page must be a number", { status: 400 });
     }
 
     // 1. Convert base64 to Cloudinary URL
@@ -57,19 +61,32 @@ export async function POST(request: Request) {
     };
 
     // Replace current page's image in all arrays
-    const currentPage = canvasData.currentPage;
     if (currentPage >= 0 && currentPage < canvasData.pages.length) {
       // Update pages array with cloudinary URL
       updatedCanvasData.pages[currentPage] = cloudinaryUrl;
       
-      // Update all other arrays with the same URL
-      updatedCanvasData.complete_doors_and_windows[currentPage] = cloudinaryUrl;
-      updatedCanvasData.single_doors[currentPage] = cloudinaryUrl;
-      updatedCanvasData.double_doors[currentPage] = cloudinaryUrl;
-      updatedCanvasData.windows[currentPage] = cloudinaryUrl;
-      updatedCanvasData.single_doors_and_windows[currentPage] = cloudinaryUrl;
-      updatedCanvasData.single_doors_and_double_doors[currentPage] = cloudinaryUrl;
-      updatedCanvasData.double_doors_and_windows[currentPage] = cloudinaryUrl;
+      // Ensure all arrays have the same length as pages array
+      const totalPages = canvasData.pages.length;
+      
+      // Helper function to update an array
+      const updateArray = (array: string[], url: string, index: number): string[] => {
+        // Initialize array with empty strings if needed
+        while (array.length < totalPages) {
+          array.push("");
+        }
+        // Update only the specific index
+        array[index] = url;
+        return array;
+      };
+
+      // Update all other arrays with the new URL for this specific page
+      updatedCanvasData.complete_doors_and_windows = updateArray(updatedCanvasData.complete_doors_and_windows, cloudinaryUrl, currentPage);
+      updatedCanvasData.single_doors = updateArray(updatedCanvasData.single_doors, cloudinaryUrl, currentPage);
+      updatedCanvasData.double_doors = updateArray(updatedCanvasData.double_doors, cloudinaryUrl, currentPage);
+      updatedCanvasData.windows = updateArray(updatedCanvasData.windows, cloudinaryUrl, currentPage);
+      updatedCanvasData.single_doors_and_windows = updateArray(updatedCanvasData.single_doors_and_windows, cloudinaryUrl, currentPage);
+      updatedCanvasData.single_doors_and_double_doors = updateArray(updatedCanvasData.single_doors_and_double_doors, cloudinaryUrl, currentPage);
+      updatedCanvasData.double_doors_and_windows = updateArray(updatedCanvasData.double_doors_and_windows, cloudinaryUrl, currentPage);
     }
 
     await db
