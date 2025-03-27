@@ -31,10 +31,24 @@ export default function TopPanel() {
     if (!project?.canvasData?.pages || newPage < 0 || newPage >= project.canvasData.pages.length) return;
     
     if (canvas) {
+      // Get the active layer based on current visibility state
+      const activeLayer = useCanvasStore.getState().getActiveLayer(newPage, project.canvasData);
+      console.log('Active layer for page', newPage, 'is:', activeLayer);
+      
+      // Get the URL from the appropriate array
+      const imageUrl = project.canvasData[activeLayer]?.[newPage] || project.canvasData.pages[newPage];
+      console.log('Loading image from array:', activeLayer, 'URL:', imageUrl);
+      
       // Create a fabric.Image from the new page
       fabric.Image.fromURL(
-        project.canvasData.pages[newPage],
+        imageUrl,
         (img) => {
+          console.log('Image loaded successfully:', {
+            width: img.width,
+            height: img.height,
+            layer: activeLayer
+          });
+          
           // Calculate scale to fit Arcus AI while maintaining aspect ratio
           const canvasWidth = canvas.getWidth();
           const canvasHeight = canvas.getHeight();

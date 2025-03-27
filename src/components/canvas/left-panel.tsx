@@ -3,6 +3,7 @@
 import { Eye, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/theme-store";
+import { useCanvasStore } from "@/store/canvas-store"; // Import the canvas store
 import { useState, useEffect } from "react";
 
 interface Layer {
@@ -60,6 +61,7 @@ interface ApiToggleEvent extends CustomEvent {
 
 export default function LeftPanel() {
   const { isDarkMode } = useThemeStore();
+  const { setLayerVisibility } = useCanvasStore(); // Get the setLayerVisibility function from the canvas store
   const [activeApiLayers, setActiveApiLayers] = useState<LayerGroup[]>([]);
 
   const toggleLayerVisibility = (layerId: string) => {
@@ -74,11 +76,17 @@ export default function LeftPanel() {
         return group;
       });
     });
+
+    // Update canvas store with the new layer visibility
+    setLayerVisibility(layerId, !activeApiLayers.find(g => g.id === layerId)?.visible);
   };
 
   const handleApiToggle = (apiId: string, enabled: boolean) => {
     if (apiId === "doors-windows") {
       setActiveApiLayers(enabled ? [doorsWindowsLayers] : []);
+      
+      // Update canvas store with the new layer visibility
+      setLayerVisibility('complete_doors_and_windows', enabled);
     }
   };
 
