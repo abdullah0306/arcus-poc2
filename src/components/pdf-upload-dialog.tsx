@@ -31,7 +31,7 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
 
     const setupWorker = async () => {
       try {
-        // Set worker source
+        // Set worker source..
         GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
         setIsWorkerReady(true);
       } catch (error) {
