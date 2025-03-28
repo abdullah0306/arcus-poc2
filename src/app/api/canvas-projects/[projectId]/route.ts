@@ -3,25 +3,10 @@ import { db } from "@/lib/db";
 import { canvasProjects } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
+import { CanvasData } from "@/types/canvas";
 
 export const maxDuration = 60; // Set to 60 seconds for Vercel hobby plan
 export const dynamic = 'force-dynamic';
-
-interface CanvasData {
-  version: string;
-  pages: string[];
-  currentPage: number;
-  totalChunks?: number;
-  chunkIndex?: number;
-  projectId?: string;
-  complete_doors_and_windows: string[];
-  single_doors: string[];
-  double_doors: string[];
-  windows: string[];
-  single_doors_and_windows: string[];
-  single_doors_and_double_doors: string[];
-  double_doors_and_windows: string[];
-}
 
 export async function GET(
   req: Request,
@@ -104,7 +89,21 @@ export async function PATCH(
       .update(canvasProjects)
       .set({
         name: name,
-        canvasData: finalCanvasData,
+        canvasData: {
+          version: finalCanvasData.version,
+          pages: finalCanvasData.pages,
+          currentPage: finalCanvasData.currentPage,
+          totalChunks: finalCanvasData.totalChunks,
+          chunkIndex: finalCanvasData.chunkIndex,
+          projectId: finalCanvasData.projectId,
+          complete_doors_and_windows: finalCanvasData.complete_doors_and_windows,
+          single_doors: finalCanvasData.single_doors,
+          double_doors: finalCanvasData.double_doors,
+          windows: finalCanvasData.windows,
+          single_doors_and_windows: finalCanvasData.single_doors_and_windows,
+          single_doors_and_double_doors: finalCanvasData.single_doors_and_double_doors,
+          double_doors_and_windows: finalCanvasData.double_doors_and_windows
+        }
       })
       .where(
         and(
