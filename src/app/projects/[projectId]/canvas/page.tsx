@@ -93,7 +93,27 @@ export default function CanvasPage() {
         
         if (project.canvasData?.pages?.length > 0) {
           console.log('Loading project with pages:', project.canvasData.pages.length);
+          
+          // Check if first page contains the rect object
+          const firstPage = project.canvasData.pages[0];
+          if (typeof firstPage === 'object' && firstPage.type === 'rect') {
+            // Add the rectangle
+            const rect = new fabric.Rect(firstPage);
+            canvasRef.current?.add(rect);
+            rect.sendToBack();
+            
+            // Set total pages excluding the rect object
+            const totalImagePages = project.canvasData.pages.length - 1; // Exclude rect object
+            setTotalPages(totalImagePages);
+            // Load the first image (second element)
+            await handlePDFProcessed([project.canvasData.pages[1]]);
+          } else {
+            // This is a subsequent chunk, just load the images
+            setTotalPages(project.canvasData.pages.length);
+            await handlePDFProcessed([project.canvasData.pages[0]]);
+          }
           setCurrentPage(0);
+
           setTotalPages(project.canvasData.pages.length);
           
           // Load the default image from the pages array
@@ -103,6 +123,7 @@ export default function CanvasPage() {
           if (imageData) {
             await handlePDFProcessed([imageData]);
           }
+
         } else {
           setIsLoading(false);
         }
@@ -116,7 +137,7 @@ export default function CanvasPage() {
   }, [isCanvasReady, projectId]);
 
   // Handle adding PDF page to canvas
-  const handlePDFProcessed = async (pages: string[]) => {
+  const handlePDFProcessed = async (pages: any[]) => {
     if (!canvasRef.current || pages.length === 0) {
       setIsLoading(false);
       return;
@@ -127,49 +148,99 @@ export default function CanvasPage() {
 
     setLoadingProgress(30);
     
-    // Create a fabric.Image from the data URL
-    fabric.Image.fromURL(
-      currentPageData,
-      (img) => {
-        setLoadingProgress(60);
-        
-        // Calculate scale to fit Arcus AI while maintaining aspect ratio
-        const canvasWidth = canvas.getWidth();
-        const canvasHeight = canvas.getHeight();
-        const scale = Math.min(
-          (canvasWidth * 0.9) / img.width!,
-          (canvasHeight * 0.9) / img.height!
-        );
+    if (typeof currentPageData === 'string') {
+      // Legacy format - data URL string
+      fabric.Image.fromURL(
+        currentPageData,
+        (img) => {
+          setLoadingProgress(60);
+          
+          // Calculate scale to fit while maintaining aspect ratio
+          const canvasWidth = canvas.getWidth();
+          const canvasHeight = canvas.getHeight();
+          const scale = Math.min(
+            (canvasWidth * 0.9) / img.width!,
+            (canvasHeight * 0.9) / img.height!
+          );
 
-        setLoadingProgress(80);
+          setLoadingProgress(80);
 
-        // Set image properties
-        img.scale(scale);
-        img.set({
-          left: (canvasWidth - img.width! * scale) / 2,
-          top: (canvasHeight - img.height! * scale) / 2,
-          selectable: false,
-          evented: false,
-          hasControls: false,
-          hasBorders: false,
-          lockMovementX: true,
-          lockMovementY: true,
-          hoverCursor: 'default',
-        });
+          // Set image properties
+          img.scale(scale);
+          img.set({
+            left: (canvasWidth - img.width! * scale) / 2,
+            top: (canvasHeight - img.height! * scale) / 2,
+            selectable: false,
+            evented: false,
+            hasControls: false,
+            hasBorders: false,
+            lockMovementX: true,
+            lockMovementY: true,
+            hoverCursor: 'default',
+          });
 
-        // Clear existing objects and add the image
-        canvas.clear();
-        canvas.add(img);
-        img.sendToBack();
-        canvas.renderAll();
+          // Clear existing objects and add the image
+          canvas.clear();
+          canvas.add(img);
+          img.sendToBack();
+          canvas.renderAll();
 
-        setLoadingProgress(100);
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 500);
-      },
-      { crossOrigin: 'anonymous' }
-    );
+          setLoadingProgress(100);
+          setTimeout(() => {
+            setIsLoading(false);
+          }, 500);
+        },
+        { crossOrigin: 'anonymous' }
+      );
+    } else if (typeof currentPageData === 'object' && currentPageData.type === 'image') {
+      // New format - JSON object
+      setLoadingProgress(60);
+      
+      // Create fabric.Image from the JSON object
+      fabric.Image.fromURL(
+        currentPageData.src,
+        (img) => {
+          // Calculate scale to fit while maintaining aspect ratio
+          const canvasWidth = canvas.getWidth();
+          const canvasHeight = canvas.getHeight();
+          const scale = Math.min(
+            (canvasWidth * 0.9) / currentPageData.width,
+            (canvasHeight * 0.9) / currentPageData.height
+          );
+
+          setLoadingProgress(80);
+
+          // Set image properties
+          img.scale(scale);
+          img.set({
+            left: (canvasWidth - currentPageData.width * scale) / 2,
+            top: (canvasHeight - currentPageData.height * scale) / 2,
+            selectable: false,
+            evented: false,
+            hasControls: false,
+            hasBorders: false,
+            lockMovementX: true,
+            lockMovementY: true,
+            hoverCursor: 'default',
+          });
+
+          // Clear existing objects and add the image
+          canvas.clear();
+          canvas.add(img);
+          img.sendToBack();
+          canvas.renderAll();
+
+          setLoadingProgress(100);
+          setTimeout(() => {
+            setIsLoading(false);
+          }, 500);
+        },
+        { crossOrigin: 'anonymous' }
+      );
+    } else {
+      console.error("Unsupported page data format:", currentPageData);
+      setIsLoading(false);
+    }
   };
 
   // Handle window resize

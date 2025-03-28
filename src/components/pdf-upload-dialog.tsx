@@ -43,7 +43,7 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
     setupWorker();
   }, []);
 
-  const processPage = async (page: any, scale: number = 1.5): Promise<string> => {
+  const processPage = async (page: any, scale: number = 1.5): Promise<any> => {
     const viewport = page.getViewport({ scale });
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d")!;
@@ -58,14 +58,36 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
       }).promise;
 
       // Convert to JPEG with balanced quality (0.85) for good quality while keeping size reasonable
-      return canvas.toDataURL("image/jpeg", 0.85);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      
+      // Create a fabric.js compatible JSON object
+      return {
+        type: "image",
+        version: "5.3.0",
+        originX: "left",
+        originY: "top",
+        left: 0,
+        top: 0,
+        width: viewport.width,
+        height: viewport.height,
+        src: dataUrl,
+        crossOrigin: "anonymous",
+        filters: [],
+        selectable: false,
+        evented: false,
+        hasControls: false,
+        hasBorders: false,
+        lockMovementX: true,
+        lockMovementY: true,
+        hoverCursor: 'default'
+      };
     } finally {
       canvas.width = 0;
       canvas.height = 0;
     }
   };
 
-  const uploadInChunks = async (pages: string[], fileName: string) => {
+  const uploadInChunks = async (pages: any[], fileName: string) => {
     const CHUNK_SIZE = 1; // Process one page at a time
     const totalChunks = Math.ceil(pages.length / CHUNK_SIZE);
     let projectId: string | undefined;
@@ -80,6 +102,20 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
       
       while (retryCount < MAX_RETRIES) {
         try {
+          // Get viewport dimensions
+          const width = window.innerWidth;
+          const height = window.innerHeight;
+          
+          // Calculate the canvas dimensions (90% of viewport)
+          const canvasWidth = width * 0.9;
+          const canvasHeight = height * 0.9;
+          
+          // Calculate the rect dimensions and position
+          const rectWidth = 1535.76;
+          const rectHeight = 702;
+          const left = -127.98;
+          const top = -58.5;
+
           const response = await fetch("/api/canvas-projects", {
             method: "POST",
             headers: {
@@ -89,7 +125,54 @@ export function PDFUploadDialog({ className }: PDFUploadDialogProps) {
               name: fileName,
               canvasData: {
                 version: "1.0",
-                pages: chunk,
+                pages: chunkIndex === 0 ? [
+                  {
+                    type: "rect",
+                    version: "5.3.0",
+                    originX: "left",
+                    originY: "top",
+                    left: left,
+                    top: top,
+                    width: rectWidth,
+                    height: rectHeight,
+                    fill: "white",
+                    stroke: null,
+                    strokeWidth: 1,
+                    strokeDashArray: null,
+                    strokeLineCap: "butt",
+                    strokeDashOffset: 0,
+                    strokeLineJoin: "miter",
+                    strokeUniform: false,
+                    strokeMiterLimit: 4,
+                    scaleX: 1,
+                    scaleY: 1,
+                    angle: 0,
+                    flipX: false,
+                    flipY: false,
+                    opacity: 1,
+                    shadow: {
+                      color: "rgba(0,0,0,0.8)",
+                      blur: 5,
+                      offsetX: 0,
+                      offsetY: 0,
+                      affectStroke: false,
+                      nonScaling: false
+                    },
+                    visible: true,
+                    backgroundColor: "",
+                    fillRule: "nonzero",
+                    paintFirst: "fill",
+                    globalCompositeOperation: "source-over",
+                    skewX: 0,
+                    skewY: 0,
+                    rx: 0,
+                    ry: 0,
+                    name: "clip",
+                    selectable: false,
+                    hasControls: false
+                  },
+                  ...chunk
+                ] : chunk,
                 currentPage: 0,
                 totalChunks,
                 chunkIndex,
