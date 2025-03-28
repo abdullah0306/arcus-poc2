@@ -31,23 +31,44 @@ export async function POST(request: Request) {
     const project = projects[0];
     const canvasData = project.canvasData as CanvasData;
 
-    // Get the URL from the appropriate array
+    // Get the URL from the appropriate array based on layerId
     let imageUrl: string | undefined;
     
     if (visible) {
-      // Check if the layer exists and has the correct type
-      const layerArray = canvasData[layerId] as string[];
-      if (Array.isArray(layerArray) && currentPage >= 0 && currentPage < layerArray.length) {
-        imageUrl = layerArray[currentPage];
+      switch (layerId) {
+        case "complete_doors_and_windows":
+          imageUrl = canvasData.complete_doors_and_windows?.[currentPage];
+          break;
+        case "single_doors":
+          imageUrl = canvasData.single_doors?.[currentPage];
+          break;
+        case "double_doors":
+          imageUrl = canvasData.double_doors?.[currentPage];
+          break;
+        case "windows":
+          imageUrl = canvasData.windows?.[currentPage];
+          break;
+        case "single_doors_and_windows":
+          imageUrl = canvasData.single_doors_and_windows?.[currentPage];
+          break;
+        case "single_doors_and_double_doors":
+          imageUrl = canvasData.single_doors_and_double_doors?.[currentPage];
+          break;
+        case "double_doors_and_windows":
+          imageUrl = canvasData.double_doors_and_windows?.[currentPage];
+          break;
+        case "pages":
+          imageUrl = canvasData.pages?.[currentPage];
+          break;
+        default:
+          // Fallback to pages array if layerId is not recognized
+          imageUrl = canvasData.pages?.[currentPage];
       }
     }
 
     // Fallback to pages array if no valid image found
-    if (!imageUrl) {
-      const pagesArray = canvasData.pages as string[];
-      if (Array.isArray(pagesArray) && currentPage >= 0 && currentPage < pagesArray.length) {
-        imageUrl = pagesArray[currentPage];
-      }
+    if (!imageUrl && layerId !== "pages") {
+      imageUrl = canvasData.pages?.[currentPage];
     }
 
     if (!imageUrl) {

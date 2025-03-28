@@ -32,21 +32,14 @@ const doorsWindowsLayers: LayerGroup = {
   visible: false,
   children: [
     {
-      id: "complete_doors_and_windows",
-      name: "Complete Doors and Windows",
-      visible: true,
-      locked: false,
-      type: 'layer'
-    },
-    {
-      id: "single-door",
+      id: "single-doors",
       name: "Single Doors",
       visible: true,
       locked: false,
       type: 'layer'
     },
     {
-      id: "double-door",
+      id: "double-doors",
       name: "Double Doors",
       visible: true,
       locked: false,
@@ -74,6 +67,11 @@ export default function LeftPanel() {
   const { setLayerVisibility, layers } = useCanvasStore(); 
   const [activeApiLayers, setActiveApiLayers] = useState<LayerGroup[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [layerStates, setLayerStates] = useState({
+    "single-doors": false,
+    "double-doors": false,
+    "windows": false
+  });
   const { projectId } = useParams();
   const { data: project } = useGetCanvasProject(projectId as string);
   const { currentPage } = usePDFPageStore();
@@ -88,63 +86,174 @@ export default function LeftPanel() {
 
       if (hasDetectionResults) {
         setActiveApiLayers([doorsWindowsLayers]);
-        // Set the complete_doors_and_windows layer to visible by default
-        setLayerVisibility('complete_doors_and_windows', true);
+        // Initialize all sub-layers as visible when detection results exist
+        setLayerStates({
+          "single-doors": true,
+          "double-doors": true,
+          "windows": true
+        });
       } else {
         setActiveApiLayers([]);
-        // Set the complete_doors_and_windows layer to hidden
-        setLayerVisibility('complete_doors_and_windows', false);
+        setLayerStates({
+          "single-doors": false,
+          "double-doors": false,
+          "windows": false
+        });
       }
     }
   }, [project]);
 
+  const getLayerArrayKey = (states: typeof layerStates) => {
+    const { "single-doors": single, "double-doors": double, "windows": windows } = states;
+    
+    // All layers visible - show complete detection
+    if (single && double && windows) {
+      return "complete_doors_and_windows";
+    }
+    
+    // Two layers visible
+    if (single && double && !windows) {
+      return "single_doors_and_double_doors";
+    }
+    if (single && !double && windows) {
+      return "single_doors_and_windows";
+    }
+    if (!single && double && windows) {
+      return "double_doors_and_windows";
+    }
+    
+    // Single layer visible
+    if (single && !double && !windows) {
+      return "single_doors";
+    }
+    if (!single && double && !windows) {
+      return "double_doors";
+    }
+    if (!single && !double && windows) {
+      return "windows";
+    }
+    
+    // No layers visible - show original pages
+    return "pages";
+  };
+
   const toggleLayerVisibility = async (layerId: string) => {
-    setActiveApiLayers(prev => {
-      return prev.map(group => {
-        if (group.id === "doors-windows") {
-          return {
-            ...group,
-            visible: !group.visible
-          };
-        }
-        return group;
-      });
-    });
-
-    setIsProcessing(true);
-    try {
-      const response = await fetch(`/api/canvas/layer-visibility`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          projectId,
-          layerId: "complete_doors_and_windows", 
-          visible: !activeApiLayers.find(g => g.id === "doors-windows")?.visible,
-          currentPage
-        })
-      });
-
-      const data = await response.json();
+    if (layerId === "doors-windows") {
+      // Toggle main group visibility
+      const newMainVisible = !activeApiLayers.find(g => g.id === "doors-windows")?.visible;
       
-      if (data.success) {
-        // Update the canvas store with the new visibility state
-        setLayerVisibility("complete_doors_and_windows", data.visible);
-        
-        // Emit an event to update the canvas image
-        window.dispatchEvent(new CustomEvent('layerVisibilityChanged', {
-          detail: {
-            imageUrl: data.imageUrl,
-            layerId: data.layerId,
-            visible: data.visible
+      // Update all sub-layer states
+      const newStates = {
+        "single-doors": newMainVisible,
+        "double-doors": newMainVisible,
+        "windows": newMainVisible
+      };
+      setLayerStates(newStates);
+      
+      setActiveApiLayers(prev => {
+        return prev.map(group => {
+          if (group.id === "doors-windows") {
+            return {
+              ...group,
+              visible: newMainVisible,
+              children: group.children.map(child => ({
+                ...child,
+                visible: newMainVisible
+              }))
+            };
           }
-        }));
+          return group;
+        });
+      });
+
+      setIsProcessing(true);
+      try {
+        const arrayKey = newMainVisible ? "complete_doors_and_windows" : "pages";
+        const response = await fetch(`/api/canvas/layer-visibility`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            projectId,
+            layerId: arrayKey,
+            visible: true,
+            currentPage
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          window.dispatchEvent(new CustomEvent('layerVisibilityChanged', {
+            detail: {
+              imageUrl: data.imageUrl,
+              layerId: arrayKey,
+              visible: true
+            }
+          }));
+        }
+      } catch (error) {
+        console.error('Error updating layer visibility:', error);
+      } finally {
+        setIsProcessing(false);
       }
-    } catch (error) {
-      console.error('Error updating layer visibility:', error);
-    } finally {
-      setIsProcessing(false);
+    } else {
+      // Handle sub-layer toggle
+      const newStates = {
+        ...layerStates,
+        [layerId]: !layerStates[layerId as keyof typeof layerStates]
+      };
+      setLayerStates(newStates);
+
+      // Update layer group visibility in UI
+      setActiveApiLayers(prev => {
+        return prev.map(group => {
+          if (group.id === "doors-windows") {
+            return {
+              ...group,
+              children: group.children.map(child => ({
+                ...child,
+                visible: newStates[child.id as keyof typeof layerStates]
+              }))
+            };
+          }
+          return group;
+        });
+      });
+
+      setIsProcessing(true);
+      try {
+        const arrayKey = getLayerArrayKey(newStates);
+        const response = await fetch(`/api/canvas/layer-visibility`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            projectId,
+            layerId: arrayKey,
+            visible: true,
+            currentPage
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          window.dispatchEvent(new CustomEvent('layerVisibilityChanged', {
+            detail: {
+              imageUrl: data.imageUrl,
+              layerId: arrayKey,
+              visible: true
+            }
+          }));
+        }
+      } catch (error) {
+        console.error('Error updating layer visibility:', error);
+      } finally {
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -152,7 +261,13 @@ export default function LeftPanel() {
     if (apiId === "doors-windows") {
       setActiveApiLayers(enabled ? [doorsWindowsLayers] : []);
       
-      setLayerVisibility('complete_doors_and_windows', enabled);
+      // Set all sub-layers visibility state
+      const newStates = {
+        "single-doors": enabled,
+        "double-doors": enabled,
+        "windows": enabled
+      };
+      setLayerStates(newStates);
     }
   };
 

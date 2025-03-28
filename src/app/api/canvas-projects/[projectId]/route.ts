@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { CanvasData } from "@/types/canvas";
 
-export const maxDuration = 60; // Set to 60 seconds for Vercel hobby plan
+export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
 export async function GET(
