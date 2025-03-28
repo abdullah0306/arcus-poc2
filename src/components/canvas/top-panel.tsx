@@ -25,20 +25,81 @@ export default function TopPanel() {
       console.log('Current page:', currentPage);
       console.log('Total pages:', project.canvasData.pages.length);
     }
+
+    // Update canvas image when project data changes
+    if (canvas && project?.canvasData?.pages) {
+      updateCanvasImage(currentPage);
+    }
+
+    // Listen for layer visibility changes
+    const handleLayerVisibilityChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { imageUrl, layerId, visible } = customEvent.detail;
+      
+      if (canvas && imageUrl) {
+        // Create a fabric.Image from the new URL
+        fabric.Image.fromURL(
+          imageUrl,
+          (img) => {
+            console.log('Image loaded successfully:', {
+              width: img.width,
+              height: img.height,
+              layer: layerId
+            });
+            
+            // Calculate scale to fit Arcus AI while maintaining aspect ratio
+            const canvasWidth = canvas.getWidth();
+            const canvasHeight = canvas.getHeight();
+            const scale = Math.min(
+              (canvasWidth * 0.9) / img.width!,
+              (canvasHeight * 0.9) / img.height!
+            );
+
+            // Set image properties
+            img.scale(scale);
+            img.set({
+              left: (canvasWidth - img.width! * scale) / 2,
+              top: (canvasHeight - img.height! * scale) / 2,
+              selectable: false,
+              evented: false,
+              hasControls: false,
+              hasBorders: false,
+              lockMovementX: true,
+              lockMovementY: true,
+              hoverCursor: 'default',
+            });
+
+            // Clear existing objects and add the new image
+            const existingObjects = canvas.getObjects();
+            const backgroundImage = existingObjects.find(obj => !obj.selectable);
+            if (backgroundImage) {
+              canvas.remove(backgroundImage);
+            }
+            canvas.add(img);
+            img.sendToBack();
+            canvas.renderAll();
+          },
+          { crossOrigin: 'anonymous' }
+        );
+      }
+    };
+
+    window.addEventListener('layerVisibilityChanged', handleLayerVisibilityChange as EventListener);
+    return () => window.removeEventListener('layerVisibilityChanged', handleLayerVisibilityChange as EventListener);
   }, [project, currentPage]);
 
-  const handlePageChange = async (newPage: number) => {
-    if (!project?.canvasData?.pages || newPage < 0 || newPage >= project.canvasData.pages.length) return;
+  const updateCanvasImage = (page: number) => {
+    if (!canvas || !project?.canvasData?.pages) return;
+
+    // Get the active layer based on current visibility state
+    const activeLayer = useCanvasStore.getState().getActiveLayer(page, project.canvasData);
+    console.log('Active layer for page', page, 'is:', activeLayer);
     
-    if (canvas) {
-      // Get the active layer based on current visibility state
-      const activeLayer = useCanvasStore.getState().getActiveLayer(newPage, project.canvasData);
-      console.log('Active layer for page', newPage, 'is:', activeLayer);
-      
-      // Get the URL from the appropriate array
-      const imageUrl = project.canvasData[activeLayer]?.[newPage] || project.canvasData.pages[newPage];
-      console.log('Loading image from array:', activeLayer, 'URL:', imageUrl);
-      
+    // Get the URL from the appropriate array
+    const imageUrl = project.canvasData[activeLayer]?.[page] || project.canvasData.pages[page];
+    console.log('Loading image from array:', activeLayer, 'URL:', imageUrl);
+    
+    if (imageUrl) {
       // Create a fabric.Image from the new page
       fabric.Image.fromURL(
         imageUrl,
@@ -83,6 +144,14 @@ export default function TopPanel() {
         },
         { crossOrigin: 'anonymous' }
       );
+    }
+  };
+
+  const handlePageChange = async (newPage: number) => {
+    if (!project?.canvasData?.pages || newPage < 0 || newPage >= project.canvasData.pages.length) return;
+    
+    if (canvas) {
+      updateCanvasImage(newPage);
     }
     
     setCurrentPage(newPage);

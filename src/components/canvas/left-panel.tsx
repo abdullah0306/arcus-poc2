@@ -3,8 +3,11 @@
 import { Eye, Plus, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/theme-store";
-import { useCanvasStore } from "@/store/canvas-store"; // Import the canvas store
+import { useCanvasStore } from "@/store/canvas-store";
 import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { useGetCanvasProject } from "@/features/projects/api/use-get-canvas-project";
+import { usePDFPageStore } from "@/store/pdf-page-store";
 
 interface Layer {
   id: string;
@@ -25,9 +28,16 @@ interface LayerGroup {
 const doorsWindowsLayers: LayerGroup = {
   id: "doors-windows",
   title: "Doors and Windows",
-  icon: "🚪",
+  icon: "",
   visible: false,
   children: [
+    {
+      id: "complete_doors_and_windows",
+      name: "Complete Doors and Windows",
+      visible: true,
+      locked: false,
+      type: 'layer'
+    },
     {
       id: "single-door",
       name: "Single Doors",
@@ -61,13 +71,36 @@ interface ApiToggleEvent extends CustomEvent {
 
 export default function LeftPanel() {
   const { isDarkMode } = useThemeStore();
-  const { setLayerVisibility } = useCanvasStore(); // Get the setLayerVisibility function from the canvas store
+  const { setLayerVisibility, layers } = useCanvasStore(); 
   const [activeApiLayers, setActiveApiLayers] = useState<LayerGroup[]>([]);
+  const { projectId } = useParams();
+  const { data: project } = useGetCanvasProject(projectId as string);
+  const { currentPage } = usePDFPageStore();
 
-  const toggleLayerVisibility = (layerId: string) => {
+  useEffect(() => {
+    if (project?.canvasData) {
+      const hasDetectionResults = 
+        project.canvasData.complete_doors_and_windows?.length > 0 ||
+        project.canvasData.single_doors?.length > 0 ||
+        project.canvasData.double_doors?.length > 0 ||
+        project.canvasData.windows?.length > 0;
+
+      if (hasDetectionResults) {
+        setActiveApiLayers([doorsWindowsLayers]);
+        // Set the complete_doors_and_windows layer to visible by default
+        setLayerVisibility('complete_doors_and_windows', true);
+      } else {
+        setActiveApiLayers([]);
+        // Set the complete_doors_and_windows layer to hidden
+        setLayerVisibility('complete_doors_and_windows', false);
+      }
+    }
+  }, [project]);
+
+  const toggleLayerVisibility = async (layerId: string) => {
     setActiveApiLayers(prev => {
       return prev.map(group => {
-        if (group.id === layerId) {
+        if (group.id === "doors-windows") {
           return {
             ...group,
             visible: !group.visible
@@ -77,15 +110,44 @@ export default function LeftPanel() {
       });
     });
 
-    // Update canvas store with the new layer visibility
-    setLayerVisibility(layerId, !activeApiLayers.find(g => g.id === layerId)?.visible);
+    try {
+      const response = await fetch(`/api/canvas/layer-visibility`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId,
+          layerId: "complete_doors_and_windows", 
+          visible: !activeApiLayers.find(g => g.id === "doors-windows")?.visible,
+          currentPage
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update the canvas store with the new visibility state
+        setLayerVisibility("complete_doors_and_windows", data.visible);
+        
+        // Emit an event to update the canvas image
+        window.dispatchEvent(new CustomEvent('layerVisibilityChanged', {
+          detail: {
+            imageUrl: data.imageUrl,
+            layerId: data.layerId,
+            visible: data.visible
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error updating layer visibility:', error);
+    }
   };
 
   const handleApiToggle = (apiId: string, enabled: boolean) => {
     if (apiId === "doors-windows") {
       setActiveApiLayers(enabled ? [doorsWindowsLayers] : []);
       
-      // Update canvas store with the new layer visibility
       setLayerVisibility('complete_doors_and_windows', enabled);
     }
   };

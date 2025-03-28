@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     const canvasData = project.canvasData as CanvasData;
 
     // 3. Call the external API for detection
-    const apiResponse = await fetch('https://1bbc-103-148-128-18.ngrok-free.app/arcus/arcus_ai', {
+    const apiResponse = await fetch('https://45bc-103-148-128-18.ngrok-free.app/arcus/arcus_ai', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -36,71 +36,28 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     }
   })),
   getActiveLayer: (currentPage: number, canvasData: CanvasData) => {
-    const layers = ['single_doors', 'double_doors', 'windows'] as const;
-    type LayerType = typeof layers[number];
-    
-    const subLayers = {
-      'single_doors': 'single_doors_and_double_doors',
-      'double_doors': 'single_doors_and_windows',
-      'windows': 'double_doors_and_windows'
-    } as const;
+    // Get the current visibility state
+    const state = useCanvasStore.getState();
+    const layers = state.layers;
 
-    console.log('Checking layers for page:', currentPage);
-    console.log('Layer data:', {
-      single_doors: canvasData.single_doors?.[currentPage],
-      double_doors: canvasData.double_doors?.[currentPage],
-      windows: canvasData.windows?.[currentPage],
-      complete_doors_and_windows: canvasData.complete_doors_and_windows?.[currentPage]
-    });
+    // Check if we have detection results
+    const hasDetectionResults = 
+      canvasData.complete_doors_and_windows?.[currentPage] ||
+      canvasData.single_doors?.[currentPage] ||
+      canvasData.double_doors?.[currentPage] ||
+      canvasData.windows?.[currentPage];
 
-    // Check if all sub-layers are visible
-    const allSubLayersVisible = layers.every(layer => {
-      const layerData = canvasData[layer];
-      const isVisible = Array.isArray(layerData) && 
-             layerData[currentPage] !== undefined && 
-             layerData[currentPage] !== '';
-      console.log(`Layer ${layer} visibility:`, isVisible);
-      return isVisible;
-    });
+    // If no detection results, always show pages
+    if (!hasDetectionResults) {
+      return 'pages';
+    }
 
-    // If all sub-layers are visible, return complete_doors_and_windows
-    if (allSubLayersVisible) {
-      console.log('All layers visible, showing complete_doors_and_windows');
+    // If complete_doors_and_windows is visible, show it
+    if (layers.complete_doors_and_windows) {
       return 'complete_doors_and_windows';
     }
 
-    // Check sub-layers combinations
-    for (const layer of layers) {
-      const layerData = canvasData[layer];
-      const isVisible = Array.isArray(layerData) && 
-             layerData[currentPage] !== undefined && 
-             layerData[currentPage] !== '';
-      
-      if (!isVisible) continue;
-      
-      console.log(`Layer ${layer} is visible`);
-      
-      const otherLayers = layers.filter(l => l !== layer);
-      const visibleCount = otherLayers.filter(l => {
-        const otherLayerData = canvasData[l];
-        const isVisible = Array.isArray(otherLayerData) && 
-               otherLayerData[currentPage] !== undefined && 
-               otherLayerData[currentPage] !== '';
-        console.log(`Layer ${l} visibility:`, isVisible);
-        return isVisible;
-      }).length;
-
-      if (visibleCount === 0) {
-        console.log(`Only ${layer} is visible, showing its image`);
-        return layer;
-      } else if (visibleCount === 1) {
-        console.log(`Two layers visible (${layer} and one other), showing ${subLayers[layer as LayerType]}`);
-        return subLayers[layer as LayerType];
-      }
-    }
-
-    // If no layers are visible or no valid combination found
-    console.log('No valid layer combination found, showing pages array image');
+    // Otherwise show the pages array
     return 'pages';
   }
 }));
