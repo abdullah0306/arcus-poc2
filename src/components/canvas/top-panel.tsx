@@ -26,7 +26,7 @@ export default function TopPanel() {
       console.log('Total pages:', project.canvasData.pages.length);
     }
 
-    // Update canvas image when project data changes......
+    // Update canvas image when project data changes
     if (canvas && project?.canvasData?.pages) {
       updateCanvasImage(currentPage);
     }
