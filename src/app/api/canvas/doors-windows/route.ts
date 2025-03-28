@@ -7,9 +7,14 @@ import { eq } from "drizzle-orm";
 import { CanvasData } from "@/types/canvas";
 
 interface DetectionResults {
-  doors: string[];
-  windows: string[];
-  processingTime: string;
+  status: string;
+  complete_doors_and_windows: string;
+  single_doors: string;
+  double_doors: string;
+  windows: string;
+  single_doors_and_windows: string;
+  single_doors_and_double_doors: string;
+  double_doors_and_windows: string;
 }
 
 export async function POST(request: Request) {
@@ -45,7 +50,22 @@ export async function POST(request: Request) {
     const project = projects[0];
     const canvasData = project.canvasData as CanvasData;
 
-    // 3. Update the project with the new canvas data
+    // 3. Call the external API for detection
+    const apiResponse = await fetch('https://1bbc-103-148-128-18.ngrok-free.app/arcus/arcus_ai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image_url: cloudinaryUrl }),
+    });
+
+    if (!apiResponse.ok) {
+      throw new Error(`API request failed with status: ${apiResponse.status}`);
+    }
+
+    const detectionResults: DetectionResults = await apiResponse.json();
+
+    // 4. Update the project with the new canvas data
     // Keep the original cloudinary URL in pages array
     // Create new arrays with the same URL for now
     const updatedCanvasData: CanvasData = {
@@ -62,31 +82,17 @@ export async function POST(request: Request) {
 
     // Replace current page's image in all arrays
     if (currentPage >= 0 && currentPage < canvasData.pages.length) {
-      // Update pages array with cloudinary URL
+      // Update pages array with original cloudinary URL
       updatedCanvasData.pages[currentPage] = cloudinaryUrl;
       
-      // Ensure all arrays have the same length as pages array
-      const totalPages = canvasData.pages.length;
-      
-      // Helper function to update an array
-      const updateArray = (array: string[], url: string, index: number): string[] => {
-        // Initialize array with empty strings if needed
-        while (array.length < totalPages) {
-          array.push("");
-        }
-        // Update only the specific index
-        array[index] = url;
-        return array;
-      };
-
-      // Update all other arrays with the new URL for this specific page
-      updatedCanvasData.complete_doors_and_windows = updateArray(updatedCanvasData.complete_doors_and_windows, cloudinaryUrl, currentPage);
-      updatedCanvasData.single_doors = updateArray(updatedCanvasData.single_doors, cloudinaryUrl, currentPage);
-      updatedCanvasData.double_doors = updateArray(updatedCanvasData.double_doors, cloudinaryUrl, currentPage);
-      updatedCanvasData.windows = updateArray(updatedCanvasData.windows, cloudinaryUrl, currentPage);
-      updatedCanvasData.single_doors_and_windows = updateArray(updatedCanvasData.single_doors_and_windows, cloudinaryUrl, currentPage);
-      updatedCanvasData.single_doors_and_double_doors = updateArray(updatedCanvasData.single_doors_and_double_doors, cloudinaryUrl, currentPage);
-      updatedCanvasData.double_doors_and_windows = updateArray(updatedCanvasData.double_doors_and_windows, cloudinaryUrl, currentPage);
+      // Update all other arrays with the detection results
+      updatedCanvasData.complete_doors_and_windows[currentPage] = detectionResults.complete_doors_and_windows;
+      updatedCanvasData.single_doors[currentPage] = detectionResults.single_doors;
+      updatedCanvasData.double_doors[currentPage] = detectionResults.double_doors;
+      updatedCanvasData.windows[currentPage] = detectionResults.windows;
+      updatedCanvasData.single_doors_and_windows[currentPage] = detectionResults.single_doors_and_windows;
+      updatedCanvasData.single_doors_and_double_doors[currentPage] = detectionResults.single_doors_and_double_doors;
+      updatedCanvasData.double_doors_and_windows[currentPage] = detectionResults.double_doors_and_windows;
     }
 
     await db
@@ -96,27 +102,24 @@ export async function POST(request: Request) {
       })
       .where(eq(canvasProjects.id, projectId));
 
-    // 4. Return the updated project data
+    // 5. Return the updated project data
     const updatedProject = await db
       .select()
       .from(canvasProjects)
       .where(eq(canvasProjects.id, projectId));
 
-    console.log("Cloudinary URL:", cloudinaryUrl);
-    
     return NextResponse.json({
       success: true,
       cloudinaryUrl,
-      detectionResults: {
-        doors: [],
-        windows: [],
-        processingTime: "0.00s"
-      }
+      detectionResults
     });
   } catch (error) {
     console.error("Error in doors-windows detection:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to process image" },
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Failed to process image" 
+      },
       { status: 500 }
     );
   }
