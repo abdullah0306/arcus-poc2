@@ -17,20 +17,13 @@ export default function TopPanel() {
   const { isDarkMode, toggleTheme } = useThemeStore();
   const { projectId } = useParams();
   const { data: project } = useGetCanvasProject(projectId as string);
-  const { currentPage, setCurrentPage } = usePDFPageStore();
-
-  // Calculate actual page count excluding the rect object
-  const actualPageCount = project?.canvasData?.pages 
-    ? (project.canvasData.pages[0]?.type === 'rect' 
-      ? project.canvasData.pages.length - 1 
-      : project.canvasData.pages.length)
-    : 0;
+  const { currentPage, totalPages, setCurrentPage } = usePDFPageStore();
 
   useEffect(() => {
     if (project?.canvasData?.pages) {
       console.log('Project pages:', project.canvasData.pages);
       console.log('Current page:', currentPage);
-      console.log('Actual page count:', actualPageCount);
+      console.log('Total pages:', project.canvasData.pages.length);
     }
 
     // Update canvas image when project data changes
@@ -123,44 +116,34 @@ export default function TopPanel() {
           const scale = Math.min(
             (canvasWidth * 0.9) / img.width!,
             (canvasHeight * 0.9) / img.height!
-          ); 
+          );
 
-            // Set image properties
-            img.scale(scale);
-            img.set({
-              left: (canvasWidth - pageData.width * scale) / 2,
-              top: (canvasHeight - pageData.height * scale) / 2,
-              selectable: false,
-              evented: false,
-              hasControls: false,
-              hasBorders: false,
-              lockMovementX: true,
-              lockMovementY: true,
-              hoverCursor: 'default',
-            });
+          // Set image properties
+          img.scale(scale);
+          img.set({
+            left: (canvasWidth - img.width! * scale) / 2,
+            top: (canvasHeight - img.height! * scale) / 2,
+            selectable: false,
+            evented: false,
+            hasControls: false,
+            hasBorders: false,
+            lockMovementX: true,
+            lockMovementY: true,
+            hoverCursor: 'default',
+          });
 
-            // Clear existing objects except the rect
-            const existingObjects = canvas.getObjects();
-            const backgroundImage = existingObjects.find(obj => !obj.selectable && obj.type !== 'rect');
-            if (backgroundImage) {
-              canvas.remove(backgroundImage);
-            }
-            canvas.add(img);
-            img.sendToBack();
-            
-            // Make sure rect stays at the back
-            const rect = existingObjects.find(obj => obj.type === 'rect');
-            if (rect) {
-              rect.sendToBack();
-            }
-            
-            canvas.renderAll();
-          },
-          { crossOrigin: 'anonymous' }
-        );
-      } else {
-        console.error("Unsupported page data format:", pageData);
-      }
+          // Clear existing objects and add the new image
+          const existingObjects = canvas.getObjects();
+          const backgroundImage = existingObjects.find(obj => !obj.selectable);
+          if (backgroundImage) {
+            canvas.remove(backgroundImage);
+          }
+          canvas.add(img);
+          img.sendToBack();
+          canvas.renderAll();
+        },
+        { crossOrigin: 'anonymous' }
+      );
     }
   };
 
@@ -260,10 +243,10 @@ export default function TopPanel() {
               isDarkMode 
                 ? "hover:bg-orange-500/10" 
                 : "hover:bg-orange-500/10",
-              !project?.canvasData?.pages || currentPage <= 0 && "opacity-50 cursor-not-allowed"
+              currentPage === 0 && "opacity-50 cursor-not-allowed"
             )}
             onClick={() => handlePageChange(currentPage - 1)}
-            disabled={!project?.canvasData?.pages || currentPage <= 0}
+            disabled={currentPage === 0}
           >
             <ChevronLeft className={cn(
               "w-4 h-4 transition-colors",
@@ -278,12 +261,12 @@ export default function TopPanel() {
               "font-medium transition-colors",
               isDarkMode ? "text-orange-100" : "text-zinc-900"
             )}>{project?.name || "Untitled Project"}</h1>
-            {project?.canvasData?.pages && (
+            {project?.canvasData?.pages && project.canvasData.pages.length > 1 && (
               <span className={cn(
                 "text-sm",
                 isDarkMode ? "text-orange-100/70" : "text-zinc-600"
               )}>
-                Page {currentPage + 1} of {actualPageCount}
+                Page {currentPage + 1} of {project.canvasData.pages.length}
               </span>
             )}
           </div>
@@ -294,10 +277,10 @@ export default function TopPanel() {
               isDarkMode 
                 ? "hover:bg-orange-500/10" 
                 : "hover:bg-orange-500/10",
-              !project?.canvasData?.pages || currentPage >= actualPageCount - 1 && "opacity-50 cursor-not-allowed"
+              !project?.canvasData?.pages || currentPage >= project.canvasData.pages.length - 1 && "opacity-50 cursor-not-allowed"
             )}
             onClick={() => handlePageChange(currentPage + 1)}
-            disabled={!project?.canvasData?.pages || currentPage >= actualPageCount - 1}
+            disabled={!project?.canvasData?.pages || currentPage >= project.canvasData.pages.length - 1}
           >
             <ChevronRight className={cn(
               "w-4 h-4 transition-colors",
