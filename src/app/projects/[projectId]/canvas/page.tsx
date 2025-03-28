@@ -96,10 +96,9 @@ export default function CanvasPage() {
           setCurrentPage(0);
           setTotalPages(project.canvasData.pages.length);
           
-          // Load the complete_doors_and_windows image if available, fallback to pages array
+          // Load the default image from the pages array
           const currentPage = 0;
-          const imageData = project.canvasData.complete_doors_and_windows?.[currentPage] || 
-                         project.canvasData.pages[currentPage];
+          const imageData = project.canvasData.pages[currentPage];
           
           if (imageData) {
             await handlePDFProcessed([imageData]);

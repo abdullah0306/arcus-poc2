@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, Plus, Square } from "lucide-react";
+import { Eye, Plus, Square, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useThemeStore } from "@/store/theme-store";
 import { useCanvasStore } from "@/store/canvas-store";
@@ -73,6 +73,7 @@ export default function LeftPanel() {
   const { isDarkMode } = useThemeStore();
   const { setLayerVisibility, layers } = useCanvasStore(); 
   const [activeApiLayers, setActiveApiLayers] = useState<LayerGroup[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
   const { projectId } = useParams();
   const { data: project } = useGetCanvasProject(projectId as string);
   const { currentPage } = usePDFPageStore();
@@ -110,6 +111,7 @@ export default function LeftPanel() {
       });
     });
 
+    setIsProcessing(true);
     try {
       const response = await fetch(`/api/canvas/layer-visibility`, {
         method: 'POST',
@@ -141,6 +143,8 @@ export default function LeftPanel() {
       }
     } catch (error) {
       console.error('Error updating layer visibility:', error);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -188,14 +192,18 @@ export default function LeftPanel() {
     <div key={group.id} className="space-y-1">
       <div className="flex items-center justify-between p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md">
         <div className="flex items-center space-x-2">
-          <Eye 
-            className={cn(
-              "h-4 w-4 transition-all",
-              group.visible ? (isDarkMode ? "text-orange-400" : "text-orange-500") : "text-zinc-400",
-              "group-hover:text-orange-500 dark:group-hover:text-orange-400"
-            )} 
-            onClick={() => toggleLayerVisibility(group.id)} 
-          />
+          {isProcessing && group.id === "doors-windows" ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Eye 
+              className={cn(
+                "h-4 w-4 transition-all",
+                group.visible ? (isDarkMode ? "text-orange-400" : "text-orange-500") : "text-zinc-400",
+                "group-hover:text-orange-500 dark:group-hover:text-orange-400"
+              )} 
+              onClick={() => toggleLayerVisibility(group.id)} 
+            />
+          )}
           <span className={cn(
             "text-sm font-medium",
             isDarkMode ? "text-zinc-300" : "text-zinc-700"

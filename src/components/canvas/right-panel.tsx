@@ -271,14 +271,21 @@ export default function RightPanel() {
                       {option.title}
                     </span>
                   </div>
-                  <Switch 
-                    checked={option.enabled}
-                    className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOptionToggle(option.id);
-                    }} 
-                  />
+                  {option.id === "doors-windows" && isProcessing ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-sm text-gray-500">Processing...</span>
+                    </div>
+                  ) : (
+                    <Switch 
+                      checked={option.enabled}
+                      className={isDarkMode ? "bg-zinc-700" : "bg-orange-500"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOptionToggle(option.id);
+                      }} 
+                    />
+                  )}
                 </div>
                 <p className={cn(
                   "text-xs",
@@ -329,14 +336,7 @@ export default function RightPanel() {
           disabled={isProcessing}
           className="w-full"
         >
-          {isProcessing ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            "Detect Doors & Windows"
-          )}
+          Detect Doors & Windows
         </Button>
       </div>
     </div>
