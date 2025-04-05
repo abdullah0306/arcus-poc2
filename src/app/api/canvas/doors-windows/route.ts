@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-// Use Node.js runtime to allow longer timeouts
-export const runtime = 'nodejs';
-export const maxDuration = 60; // Maximum allowed timeout for Hobby plan (60 seconds)
+// Use Edge Runtime to allow longer timeouts and streaming response
+export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 import { uploadToCloudinary } from "@/lib/db/cloudinary-upload";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -21,6 +23,9 @@ interface DetectionResults {
 }
 
 export async function POST(request: Request) {
+  // Create a TransformStream for streaming response
+  const stream = new TransformStream();
+  const writer = stream.writable.getWriter();
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -57,7 +62,8 @@ export async function POST(request: Request) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 58000); // 58 second timeout (just under 60 seconds to allow for some overhead)
 
-    const apiResponse = await fetch('https://arcusdoors.paragonestimator.com/arcus/arcus_ai', {
+    // Start processing in background
+    const processPromise = fetch('https://arcusdoors.paragonestimator.com/arcus/arcus_ai', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,11 +74,12 @@ export async function POST(request: Request) {
 
     clearTimeout(timeoutId);
 
-    if (!apiResponse.ok) {
-      throw new Error(`API request failed with status: ${apiResponse.status}`);
+    const response = await processPromise;
+    if (!response.ok) {
+      throw new Error(`API request failed with status: ${response.status}`);
     }
 
-    const detectionResults: DetectionResults = await apiResponse.json();
+    const detectionResults: DetectionResults = await response.json();
 
     // 4. Update the project with the new canvas data
     // Keep the original cloudinary URL in pages array
