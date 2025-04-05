@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+// Use Node.js runtime to allow longer timeouts
+export const runtime = 'nodejs';
+export const maxDuration = 120; // 2 minutes timeout in seconds
 import { uploadToCloudinary } from "@/lib/db/cloudinary-upload";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -51,13 +54,19 @@ export async function POST(request: Request) {
     const canvasData = project.canvasData as CanvasData;
 
     // 3. Call the external API for detection
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 115000); // 115 second timeout (just under 2 minutes to allow for some overhead)
+
     const apiResponse = await fetch('https://arcusdoors.paragonestimator.com/arcus/arcus_ai', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ image_url: cloudinaryUrl }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!apiResponse.ok) {
       throw new Error(`API request failed with status: ${apiResponse.status}`);
