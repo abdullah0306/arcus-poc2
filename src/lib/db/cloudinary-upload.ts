@@ -2,9 +2,7 @@ const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "
 const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || "167236172529885";
 const CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET || "VMZYjoOD6pmvcqaV9LjC44ImlqU";
 
-export const generateSignature = (params: Record<string, string>) => {
-  const crypto = require('crypto');
-  
+export const generateSignature = async (params: Record<string, string>) => {
   // Sort parameters alphabetically
   const sortedParams = Object.keys(params).sort().reduce((acc: Record<string, string>, key) => {
     acc[key] = params[key];
@@ -19,8 +17,17 @@ export const generateSignature = (params: Record<string, string>) => {
   // Append API secret
   const signatureString = stringToSign + CLOUDINARY_API_SECRET;
   
-  // Generate SHA-256 hash
-  return crypto.createHash('sha256').update(signatureString).digest('hex');
+  // Convert string to bytes
+  const encoder = new TextEncoder();
+  const data = encoder.encode(signatureString);
+  
+  // Generate SHA-256 hash using Web Crypto API
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  
+  // Convert buffer to hex string
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 };
 
 export const uploadToCloudinary = async (imageUrl: string): Promise<string> => {
@@ -54,7 +61,7 @@ export const uploadToCloudinary = async (imageUrl: string): Promise<string> => {
     };
     
     // Generate signature with all parameters
-    const signature = generateSignature(params);
+    const signature = await generateSignature(params);
     
     // Create form data
     const formData = new FormData();
