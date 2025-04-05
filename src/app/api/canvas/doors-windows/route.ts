@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 // Use Node.js runtime to allow longer timeouts
 export const runtime = 'nodejs';
-export const maxDuration = 120; // 2 minutes timeout in seconds
+export const maxDuration = 60; // Maximum allowed timeout for Hobby plan (60 seconds)
 import { uploadToCloudinary } from "@/lib/db/cloudinary-upload";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
     // 3. Call the external API for detection
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 115000); // 115 second timeout (just under 2 minutes to allow for some overhead)
+    const timeoutId = setTimeout(() => controller.abort(), 58000); // 58 second timeout (just under 60 seconds to allow for some overhead)
 
     const apiResponse = await fetch('https://arcusdoors.paragonestimator.com/arcus/arcus_ai', {
       method: 'POST',
