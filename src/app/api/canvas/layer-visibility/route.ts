@@ -57,6 +57,9 @@ export async function POST(request: Request) {
         case "double_doors_and_windows":
           imageUrl = canvasData.double_doors_and_windows?.[currentPage];
           break;
+        case "walls_color":
+          imageUrl = canvasData.walls_color?.[currentPage];
+          break;
         case "pages":
           imageUrl = canvasData.pages?.[currentPage];
           break;

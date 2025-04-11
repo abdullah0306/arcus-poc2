@@ -1,9 +1,4 @@
 import { NextResponse } from "next/server";
-// Use Edge Runtime to allow longer timeouts and streaming response
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-
 import { uploadToCloudinary } from "@/lib/db/cloudinary-upload";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -23,9 +18,6 @@ interface DetectionResults {
 }
 
 export async function POST(request: Request) {
-  // Create a TransformStream for streaming response
-  const stream = new TransformStream();
-  const writer = stream.writable.getWriter();
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -59,27 +51,19 @@ export async function POST(request: Request) {
     const canvasData = project.canvasData as CanvasData;
 
     // 3. Call the external API for detection
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 58000); // 58 second timeout (just under 60 seconds to allow for some overhead)
-
-    // Start processing in background
-    const processPromise = fetch('https://arcusdoors.paragonestimator.com/arcus/arcus_ai', {
+    const apiResponse = await fetch('https://bed4-103-203-45-199.ngrok-free.app/arcus/arcus_ai', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ image_url: cloudinaryUrl }),
-      signal: controller.signal
     });
 
-    clearTimeout(timeoutId);
-
-    const response = await processPromise;
-    if (!response.ok) {
-      throw new Error(`API request failed with status: ${response.status}`);
+    if (!apiResponse.ok) {
+      throw new Error(`API request failed with status: ${apiResponse.status}`);
     }
 
-    const detectionResults: DetectionResults = await response.json();
+    const detectionResults: DetectionResults = await apiResponse.json();
 
     // 4. Update the project with the new canvas data
     // Keep the original cloudinary URL in pages array

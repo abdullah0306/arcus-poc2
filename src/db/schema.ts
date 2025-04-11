@@ -143,7 +143,8 @@ export const canvasProjects = pgTable("canvas_projects", {
     windows: [],
     single_doors_and_windows: [],
     single_doors_and_double_doors: [],
-    double_doors_and_windows: []
+    double_doors_and_windows: [],
+    walls_color: []
   } as CanvasData),
 });
 

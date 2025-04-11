@@ -62,11 +62,30 @@ interface ApiToggleEvent extends CustomEvent {
   };
 }
 
+interface WallsColorToggleEvent extends CustomEvent {
+  detail: {
+    enabled: boolean;
+    currentPage: number;
+  };
+}
+
+// Define walls color layer
+const wallsColorLayer: Layer = {
+  id: "walls_color",
+  name: "Walls Color",
+  visible: false,
+  locked: false,
+  type: 'layer'
+};
+
 export default function LeftPanel() {
   const { isDarkMode } = useThemeStore();
   const { setLayerVisibility, layers } = useCanvasStore(); 
   const [activeApiLayers, setActiveApiLayers] = useState<LayerGroup[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingLayerId, setProcessingLayerId] = useState<string | null>(null);
+  const [showWallsColorLayer, setShowWallsColorLayer] = useState(false);
+  const [wallsColorVisible, setWallsColorVisible] = useState(false);
   const [layerStates, setLayerStates] = useState({
     "single-doors": false,
     "double-doors": false,
@@ -83,6 +102,13 @@ export default function LeftPanel() {
         project.canvasData.single_doors?.length > 0 ||
         project.canvasData.double_doors?.length > 0 ||
         project.canvasData.windows?.length > 0;
+
+      // Check for walls color data
+      const hasWallsColorData = project.canvasData.walls_color?.length > 0 && 
+        project.canvasData.walls_color[currentPage] !== null;
+
+      // Update walls color layer visibility state
+      setShowWallsColorLayer(hasWallsColorData);
 
       if (hasDetectionResults) {
         setActiveApiLayers([doorsWindowsLayers]);
@@ -166,7 +192,13 @@ export default function LeftPanel() {
         });
       });
 
+      // Make sure walls color is turned off when doors-windows is turned on
+      if (newMainVisible) {
+        setWallsColorVisible(false);
+      }
+
       setIsProcessing(true);
+      setProcessingLayerId("doors-windows");
       try {
         const arrayKey = newMainVisible ? "complete_doors_and_windows" : "pages";
         const response = await fetch(`/api/canvas/layer-visibility`, {
@@ -185,6 +217,10 @@ export default function LeftPanel() {
         const data = await response.json();
         
         if (data.success) {
+          // Update canvas store layer visibility
+          useCanvasStore.getState().setLayerVisibility('complete_doors_and_windows', newMainVisible);
+          useCanvasStore.getState().setLayerVisibility('walls_color', false);
+          
           window.dispatchEvent(new CustomEvent('layerVisibilityChanged', {
             detail: {
               imageUrl: data.imageUrl,
@@ -197,6 +233,7 @@ export default function LeftPanel() {
         console.error('Error updating layer visibility:', error);
       } finally {
         setIsProcessing(false);
+        setProcessingLayerId(null);
       }
     } else {
       // Handle sub-layer toggle
@@ -223,8 +260,13 @@ export default function LeftPanel() {
       });
 
       setIsProcessing(true);
+      setProcessingLayerId(layerId);
       try {
         const arrayKey = getLayerArrayKey(newStates);
+        
+        // Turn off walls color when toggling doors-windows sub-layers
+        setWallsColorVisible(false);
+        
         const response = await fetch(`/api/canvas/layer-visibility`, {
           method: 'POST',
           headers: {
@@ -241,6 +283,20 @@ export default function LeftPanel() {
         const data = await response.json();
         
         if (data.success) {
+          // Update canvas store layer visibility
+          // First, reset all layer visibility
+          useCanvasStore.getState().setLayerVisibility('single_doors', false);
+          useCanvasStore.getState().setLayerVisibility('double_doors', false);
+          useCanvasStore.getState().setLayerVisibility('windows', false);
+          useCanvasStore.getState().setLayerVisibility('single_doors_and_windows', false);
+          useCanvasStore.getState().setLayerVisibility('single_doors_and_double_doors', false);
+          useCanvasStore.getState().setLayerVisibility('double_doors_and_windows', false);
+          useCanvasStore.getState().setLayerVisibility('complete_doors_and_windows', false);
+          useCanvasStore.getState().setLayerVisibility('walls_color', false);
+          
+          // Then set the active layer
+          useCanvasStore.getState().setLayerVisibility(arrayKey, true);
+          
           window.dispatchEvent(new CustomEvent('layerVisibilityChanged', {
             detail: {
               imageUrl: data.imageUrl,
@@ -253,6 +309,7 @@ export default function LeftPanel() {
         console.error('Error updating layer visibility:', error);
       } finally {
         setIsProcessing(false);
+        setProcessingLayerId(null);
       }
     }
   };
@@ -268,6 +325,80 @@ export default function LeftPanel() {
         "windows": enabled
       };
       setLayerStates(newStates);
+    } else if (apiId === "walls-detection") {
+      // This will be handled by the wallsColorToggle event
+    }
+  };
+
+  // Handle walls color toggle
+  const toggleWallsColorVisibility = async () => {
+    const newVisible = !wallsColorVisible;
+    setWallsColorVisible(newVisible);
+    
+    // Turn off doors-windows layer when walls color is turned on
+    if (newVisible) {
+      // Update doors-windows visibility in UI
+      setActiveApiLayers(prev => {
+        return prev.map(group => {
+          if (group.id === "doors-windows") {
+            return {
+              ...group,
+              visible: false,
+              children: group.children.map(child => ({
+                ...child,
+                visible: false
+              }))
+            };
+          }
+          return group;
+        });
+      });
+      
+      // Update layer states
+      setLayerStates({
+        "single-doors": false,
+        "double-doors": false,
+        "windows": false
+      });
+    }
+    
+    setProcessingLayerId("walls_color");
+    setIsProcessing(true);
+    
+    try {
+      const response = await fetch(`/api/canvas/layer-visibility`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId,
+          layerId: newVisible ? "walls_color" : "pages",
+          visible: true,
+          currentPage
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update canvas store layer visibility
+        useCanvasStore.getState().setLayerVisibility('walls_color', newVisible);
+        useCanvasStore.getState().setLayerVisibility('complete_doors_and_windows', false);
+        
+        window.dispatchEvent(new CustomEvent('layerVisibilityChanged', {
+          detail: {
+            imageUrl: data.imageUrl,
+            layerId: newVisible ? "walls_color" : "pages",
+            visible: true
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error updating walls color visibility:', error);
+    } finally {
+      setIsProcessing(false);
+      setProcessingLayerId(null);
     }
   };
 
@@ -277,8 +408,20 @@ export default function LeftPanel() {
       handleApiToggle(customEvent.detail.apiId, customEvent.detail.enabled);
     };
 
+    const handleWallsColorToggle = (event: Event) => {
+      const customEvent = event as WallsColorToggleEvent;
+      if (customEvent.detail.enabled) {
+        setShowWallsColorLayer(true);
+      }
+    };
+
     window.addEventListener("apiToggle", handleAPIToggle as EventListener);
-    return () => window.removeEventListener("apiToggle", handleAPIToggle as EventListener);
+    window.addEventListener("wallsColorToggle", handleWallsColorToggle as EventListener);
+    
+    return () => {
+      window.removeEventListener("apiToggle", handleAPIToggle as EventListener);
+      window.removeEventListener("wallsColorToggle", handleWallsColorToggle as EventListener);
+    };
   }, []);
 
   const renderLayer = (layer: Layer, isDarkMode: boolean) => (
@@ -307,7 +450,7 @@ export default function LeftPanel() {
     <div key={group.id} className="space-y-1">
       <div className="flex items-center justify-between p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md">
         <div className="flex items-center space-x-2">
-          {isProcessing && group.id === "doors-windows" ? (
+          {isProcessing && processingLayerId === group.id ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Eye 
@@ -330,6 +473,30 @@ export default function LeftPanel() {
           {group.children.map(child => renderLayer(child, isDarkMode))}
         </div>
       )}
+    </div>
+  );
+
+  // Render the walls color layer
+  const renderWallsColorLayer = (isDarkMode: boolean) => (
+    <div className="flex items-center justify-between p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-md">
+      <div className="flex items-center space-x-2">
+        {isProcessing && processingLayerId === "walls_color" ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Eye 
+            className={cn(
+              "h-4 w-4 transition-all",
+              wallsColorVisible ? (isDarkMode ? "text-orange-400" : "text-orange-500") : "text-zinc-400",
+              "group-hover:text-orange-500 dark:group-hover:text-orange-400"
+            )} 
+            onClick={toggleWallsColorVisibility} 
+          />
+        )}
+        <span className={cn(
+          "text-sm font-medium",
+          isDarkMode ? "text-zinc-300" : "text-zinc-700"
+        )}>Walls Color</span>
+      </div>
     </div>
   );
 
@@ -358,6 +525,7 @@ export default function LeftPanel() {
       </div>
       <div className="p-2 space-y-1 overflow-y-auto flex-grow"> 
         {activeApiLayers.map(group => renderLayerGroup(group, isDarkMode))}
+        {showWallsColorLayer && renderWallsColorLayer(isDarkMode)}
       </div>
     </div>
   );

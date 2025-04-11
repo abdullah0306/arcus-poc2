@@ -65,6 +65,7 @@ export async function PATCH(
       single_doors_and_windows: [],
       single_doors_and_double_doors: [],
       double_doors_and_windows: [],
+      walls_color: []
     };
 
     // Merge with provided data if it exists
@@ -82,6 +83,7 @@ export async function PATCH(
           single_doors_and_windows: canvasData.single_doors_and_windows || [],
           single_doors_and_double_doors: canvasData.single_doors_and_double_doors || [],
           double_doors_and_windows: canvasData.double_doors_and_windows || [],
+          walls_color: canvasData.walls_color || [],
         } 
       : defaultCanvasData;
 
@@ -102,7 +104,8 @@ export async function PATCH(
           windows: finalCanvasData.windows,
           single_doors_and_windows: finalCanvasData.single_doors_and_windows,
           single_doors_and_double_doors: finalCanvasData.single_doors_and_double_doors,
-          double_doors_and_windows: finalCanvasData.double_doors_and_windows
+          double_doors_and_windows: finalCanvasData.double_doors_and_windows,
+          walls_color: finalCanvasData.walls_color
         }
       })
       .where(

@@ -12,6 +12,7 @@ export interface CanvasData {
   single_doors_and_windows: string[];
   single_doors_and_double_doors: string[];
   double_doors_and_windows: string[];
+  walls_color: string[];
 
   // Add index signature for dynamic access
   [key: string]: string | string[] | number | undefined;

@@ -120,6 +120,7 @@ export default function RightPanel() {
   const { currentPage } = usePDFPageStore(); // Use currentPage from the store
   const [expandedOption, setExpandedOption] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingOption, setProcessingOption] = useState<string | null>(null);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [options, setOptions] = useState<APIOption[]>(apiOptions);
 
@@ -130,6 +131,7 @@ export default function RightPanel() {
 
     try {
       setIsProcessing(true);
+      setProcessingOption("doors-windows");
       setProcessingProgress(0);
 
       // Get the current project data
@@ -176,6 +178,75 @@ export default function RightPanel() {
       alert(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setIsProcessing(false);
+      setProcessingOption(null);
+    }
+  };
+
+  const handleWallsColorDetection = async (enabled: boolean) => {
+    if (!enabled || !projectId) {
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      setProcessingOption("walls-detection");
+      setProcessingProgress(0);
+
+      // Get the current project data
+      const response = await fetch(`/api/canvas-projects/${projectId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch project: ${response.statusText}`);
+      }
+
+      const project = await response.json();
+      console.log('Project data:', project);
+      
+      if (!project.canvasData?.pages?.[currentPage]) {
+        throw new Error("No image found in canvas");
+      }
+
+      console.log('Sending image to walls color detection API');
+      // Send the image to walls-color detection API
+      const apiResponse = await fetch(`/api/canvas/walls-color`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          projectId,
+          imageUrl: project.canvasData.pages[currentPage],
+          currentPage: currentPage
+        })
+      });
+
+      console.log('API response status:', apiResponse.status);
+      
+      if (!apiResponse.ok) {
+        throw new Error(`API request failed: ${apiResponse.statusText}`);
+      }
+
+      const result = await apiResponse.json();
+      console.log('API response data:', result);
+
+      // Update the progress
+      setProcessingProgress(100);
+
+      // Dispatch an event to notify that walls color is available
+      const event = new CustomEvent("wallsColorToggle", {
+        detail: {
+          enabled: true,
+          currentPage
+        }
+      });
+      window.dispatchEvent(event);
+      
+    } catch (error) {
+      console.error("Error during walls color detection:", error);
+      alert(error instanceof Error ? error.message : "An error occurred");
+    } finally {
+      setIsProcessing(false);
+      setProcessingOption(null);
     }
   };
 
@@ -201,10 +272,11 @@ export default function RightPanel() {
       });
       window.dispatchEvent(event);
 
-      // Your existing API call logic here
+      // Call the appropriate API based on the option toggled
       if (optionId === "doors-windows") {
-        // Your existing doors-windows API call logic
         handleDoorsWindowsDetection(true);
+      } else if (optionId === "walls-detection") {
+        handleWallsColorDetection(true);
       }
     } catch (error) {
       console.error("Error toggling option:", error);
@@ -271,7 +343,7 @@ export default function RightPanel() {
                       {option.title}
                     </span>
                   </div>
-                  {option.id === "doors-windows" && isProcessing ? (
+                  {option.id === processingOption && isProcessing ? (
                     <div className="flex items-center space-x-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span className="text-sm text-gray-500">Processing...</span>

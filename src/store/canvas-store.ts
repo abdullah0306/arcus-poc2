@@ -25,7 +25,8 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     windows: false,
     single_doors_and_windows: false,
     single_doors_and_double_doors: false,
-    double_doors_and_windows: false
+    double_doors_and_windows: false,
+    walls_color: false
   },
   setCanvas: (canvas) => set({ canvas }),
   setCurrentLayer: (layer) => set({ currentLayer: layer }),
@@ -45,7 +46,8 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       canvasData.complete_doors_and_windows?.[currentPage] ||
       canvasData.single_doors?.[currentPage] ||
       canvasData.double_doors?.[currentPage] ||
-      canvasData.windows?.[currentPage];
+      canvasData.windows?.[currentPage] ||
+      canvasData.walls_color?.[currentPage];
 
     // If no detection results, always show pages
     if (!hasDetectionResults) {
@@ -55,6 +57,11 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
     // If complete_doors_and_windows is visible, show it
     if (layers.complete_doors_and_windows) {
       return 'complete_doors_and_windows';
+    }
+
+    // If walls_color is visible, show it
+    if (layers.walls_color) {
+      return 'walls_color';
     }
 
     // Otherwise show the pages array
